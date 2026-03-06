@@ -469,6 +469,8 @@ const SPINAL_REGIONS = [
 ]
 
 function getSpinalRegion(row: number, col: number, totalRows: number, totalCols: number): string | null {
+  // Only match within the actual cross-section diagram rows (not title/border/labels)
+  if (row < 6 || row > 28) return null
   const line = SPINAL_ART[row]
   if (!line) return null
   const ch = line[col]
@@ -505,7 +507,7 @@ function AsciiSpinalCord({ onRegionHover, hoveredRegion }: {
               const regionId = getSpinalRegion(row, col, totalRows, totalCols)
               const region = SPINAL_REGIONS.find(r => r.id === regionId)
               if (!region) {
-                return <span key={col} className="text-[#00d4ff40]">{char === 'D' || char === 'L' || char === 'S' || char === 'P' || char === 'A' || char === 'V' || char === 'C' ? (displayChars[char] || char) : char}</span>
+                return <span key={col} className="text-[#00d4ff40]">{char}</span>
               }
               const isHov = hoveredRegion?.id === regionId
               const display = displayChars[char] || char
@@ -716,7 +718,10 @@ const SYNAPSE_REGIONS = [
     ] },
 ]
 
+// Rows that contain actual diagram data (not titles/labels/borders)
+const SYNAPSE_DIAGRAM_ROWS = new Set([5,6,7,8,9,10,11,12,13,15,16,18,19,20,21,26,27,28,31,32,33])
 function getSynapseRegion(row: number, col: number): string | null {
+  if (!SYNAPSE_DIAGRAM_ROWS.has(row)) return null
   const line = SYNAPSE_ART[row]
   if (!line) return null
   const ch = line[col]
