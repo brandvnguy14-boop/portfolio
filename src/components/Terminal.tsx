@@ -12,7 +12,6 @@ const COMMANDS: Record<string, { desc: string; category: string }> = {
   vitals: { desc: 'Academic & technical vitals', category: 'records' },
   projects: { desc: 'Active project files', category: 'records' },
   experience: { desc: 'Clinical & work history', category: 'records' },
-  research: { desc: 'Research protocols', category: 'records' },
   achievements: { desc: 'Awards & recognitions', category: 'records' },
   skills: { desc: 'Technical capabilities scan', category: 'diagnostics' },
   contact: { desc: 'Communication channels', category: 'system' },
@@ -976,10 +975,6 @@ function getExperience(): string[] {
     '    Giant Pharmacy | Aug 2024 - Present',
     '    Prescriptions, HIPAA, patient comms',
     '',
-    '  \u25CF DENTAL ASSISTANT',
-    '    Saigon Dental Clinic | Jun - Aug 2025',
-    '    Clinical workflows, patient care, HCM',
-    '',
     '  \u25CF BIOMEDICAL RESEARCHER',
     '    University of Virginia | Jun 2025 - Now',
     '    Oral health / well-being cross-sectional',
@@ -989,36 +984,9 @@ function getExperience(): string[] {
     '    VEYM | Jun 2025 - Present',
     '    Community service, mentorship, national',
     '',
-    '  \u25CF ROBOTICS PROGRAMMER & HARDWARE LEAD',
-    '    FHS Robotics | Aug 2021 - Jun 2024',
-    '    Robot programming, hardware, competition',
   ])
 }
 
-function getResearch(): string[] {
-  return box([
-    ' RESEARCH PROTOCOLS',
-    '---',
-    '',
-    '  PROTOCOL: ORAL-HEALTH-001       [ACTIVE]',
-    '  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
-    '  Title: Oral Health & Well-Being',
-    '  Area:  Biomedical Research',
-    '  Site:  Saigon Dental Clinic / UVA',
-    '  Method: Cross-sectional analysis',
-    '  Investigating: oral health <-> self-',
-    '    perception <-> overall well-being',
-    '',
-    '  PROTOCOL: HEALTH-TECH-002       [ACTIVE]',
-    '  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
-    '  Title: Technology-Mediated Healthcare',
-    '  Area:  Health Informatics',
-    '  Method: Full-stack dev, OCR, User research',
-    '  Output: SnapRx, MicroBloom',
-    '  Investigating: reducing barriers to',
-    '    medication access & health literacy',
-  ])
-}
 
 function getAchievements(): string[] {
   return box([
@@ -1228,7 +1196,6 @@ export function Terminal() {
       case 'vitals': output = getVitals(); break
       case 'projects': output = getProjects(); break
       case 'experience': case 'exp': output = getExperience(); break
-      case 'research': output = getResearch(); break
       case 'achievements': case 'awards': output = getAchievements(); break
       case 'skills': case 'tech': output = getSkills(); break
       case 'contact': output = getContact(); break
