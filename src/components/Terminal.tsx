@@ -1254,7 +1254,7 @@ export function Terminal() {
 
   const renderLine = (text: string) => {
     const linkRegex = /\[\[([^\]]+)\]\]/g
-    const parts: (string | JSX.Element)[] = []
+    const parts: (string | React.ReactElement)[] = []
     let lastIndex = 0
     let match
     while ((match = linkRegex.exec(text)) !== null) {
