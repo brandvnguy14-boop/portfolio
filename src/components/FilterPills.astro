@@ -1,0 +1,71 @@
+---
+interface Props {
+  active: 'all' | 'essay' | 'poetry';
+}
+const { active } = Astro.props;
+---
+
+<nav class="filter-nav" aria-label="Filter writing by type">
+  <button class="pill" data-filter="all" aria-pressed={active === 'all' ? 'true' : 'false'}>All</button>
+  <button class="pill" data-filter="essay" aria-pressed={active === 'essay' ? 'true' : 'false'}>Essays</button>
+  <button class="pill" data-filter="poetry" aria-pressed={active === 'poetry' ? 'true' : 'false'}>Poetry</button>
+</nav>
+
+<style>
+  .filter-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 3rem;
+  }
+
+  .pill {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition:
+      color var(--dur-fast) var(--ease-smooth),
+      border-color var(--dur-fast) var(--ease-smooth),
+      background-color var(--dur-fast) var(--ease-smooth);
+  }
+
+  .pill:hover {
+    color: var(--color-text);
+    border-color: var(--color-border-strong);
+  }
+
+  .pill[aria-pressed='true'] {
+    background-color: var(--color-text);
+    border-color: var(--color-text);
+    color: var(--color-bg);
+  }
+</style>
+
+<script>
+  function initFilter() {
+    const pills = document.querySelectorAll<HTMLButtonElement>('.pill[data-filter]');
+    const rows = document.querySelectorAll<HTMLElement>('.writing-row[data-type]');
+
+    pills.forEach((pill) => {
+      pill.addEventListener('click', () => {
+        const filter = pill.dataset.filter as string;
+
+        pills.forEach((p) => p.setAttribute('aria-pressed', 'false'));
+        pill.setAttribute('aria-pressed', 'true');
+
+        rows.forEach((row) => {
+          const visible = filter === 'all' || row.dataset.type === filter;
+          row.style.display = visible ? '' : 'none';
+        });
+      });
+    });
+  }
+
+  document.addEventListener('astro:page-load', initFilter);
+</script>

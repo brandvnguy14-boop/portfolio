@@ -1,0 +1,110 @@
+---
+import Base from './Base.astro';
+import ReadingProgress from '@/components/ReadingProgress.astro';
+
+interface Props {
+  title: string;
+  date: Date;
+  type: 'essay' | 'poetry';
+  dek?: string;
+  slug: string;
+}
+
+const { title, date, type, dek, slug } = Astro.props;
+
+const formatted = date.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+---
+
+<Base title={`${title} — Brandon Nguyen`} description={dek}>
+  <ReadingProgress />
+
+  <article class="post-wrap">
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="mono" datetime={date.toISOString()}>{formatted}</time>
+        <span class="post-type mono" data-type={type}>{type}</span>
+      </div>
+      <h1 class="post-title" transition:name={`title-${slug}`}>{title}</h1>
+      {dek && <p class="post-dek">{dek}</p>}
+    </header>
+
+    <div class={`prose${type === 'poetry' ? ' prose-poetry' : ''}`}>
+      <slot />
+    </div>
+
+    <footer class="post-footer">
+      <a href="/writing" class="back-link">
+        <span class="mono">&#8592;</span> All writing
+      </a>
+    </footer>
+  </article>
+</Base>
+
+<style>
+  .post-wrap {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: clamp(3rem, 8vw, 6rem) clamp(1.5rem, 5vw, 4rem) 6rem;
+  }
+
+  .post-header {
+    margin-bottom: 3.5rem;
+  }
+
+  .post-meta {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+    color: var(--color-text-muted);
+  }
+
+  .post-type {
+    color: var(--color-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .post-title {
+    font-size: clamp(2.25rem, 5vw, 3.5rem);
+    font-variation-settings: 'opsz' 72;
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin: 0 0 1rem;
+  }
+
+  .post-dek {
+    font-size: 1.15rem;
+    color: var(--color-text-muted);
+    line-height: 1.55;
+    margin: 0;
+    max-width: 55ch;
+  }
+
+  .post-footer {
+    margin-top: 5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .back-link {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-smooth);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .back-link:hover {
+    color: var(--color-accent);
+  }
+</style>

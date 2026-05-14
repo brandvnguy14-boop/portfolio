@@ -1,94 +1,115 @@
-# Brandon Nguyen — Portfolio
+# brans.life
 
-A premium personal portfolio for a pre-medical neuroscience student at the University of Virginia. Features an interactive neural network visualization, device-adaptive behavior, and editorial design.
+Brandon Nguyen's personal site. Built with Astro, Tailwind, and MDX. Deployed to Vercel.
 
-## Concept
-
-The site tells a narrative: **identity -> motivation -> evidence -> work -> ambition -> contact**. It communicates scientific curiosity, academic seriousness, and interdisciplinary identity (neuroscience + medicine + technology).
-
-### Interactive Neural Network
-The hero section features a live canvas-based neural network with:
-- Neurons that drift, connect, and fire synaptic pulses
-- Mouse/touch interaction that activates nearby neurons
-- Traveling pulse animations along synaptic connections
-- Device-adaptive complexity (fewer neurons on mobile, none with reduced motion)
-
-## Stack
-
-- **Next.js 16** — App Router, static export
-- **TypeScript** — strict mode
-- **Tailwind CSS** — custom design system (cream, sage, bronze, copper palette)
-- **Framer Motion 11** — scroll-triggered animations, layout animations
-- **Vitest + Testing Library** — 39 behavioral tests
-- **next/font** — optimized Inter + Playfair Display loading
-
-## Getting Started
+## Getting started
 
 ```bash
-npm install
-npm run dev      # Start dev server at localhost:3000
-npm run build    # Production build
-npm test         # Run test suite
+pnpm install
+pnpm dev
 ```
 
-## Device Detection
+---
 
-The portfolio detects device capabilities and adapts:
+## Adding a new post
 
-| Feature | Mobile | Tablet | Desktop |
-|---------|--------|--------|---------|
-| Neural network neurons | 25 | 40 | 60 |
-| Connection distance | 120px | 150px | 180px |
-| Animation intensity | Minimal | Moderate | Full |
-| Synapse firing rate | Low | Medium | High |
-
-**Strategy:**
-- Feature detection via `matchMedia`, `navigator.maxTouchPoints`, `ontouchstart`
-- Screen width breakpoints: mobile < 768 < tablet < 1024 < desktop
-- Performance detection via `hardwareConcurrency` and `deviceMemory`
-- `prefers-reduced-motion` fully respected (disables all animation)
-- SSR-safe: returns desktop defaults during server rendering, updates on client mount to avoid hydration mismatch
-
-**No UA sniffing.** All detection uses browser capability APIs.
-
-## Customizing Content
-
-All content lives in typed data files in `src/data/`:
-
-| File | Content |
-|------|---------|
-| `bio.ts` | Name, title, story, interests, goals, values |
-| `experiences.ts` | Timeline entries (clinical, research, leadership, etc.) |
-| `projects.ts` | Project cards with descriptions and links |
-| `research.ts` | Research interests with questions and methods |
-| `achievements.ts` | Awards, scholarships, recognitions |
-| `writing.ts` | Essay/reflection entries with full content |
-| `contact.ts` | Contact links (email, GitHub, etc.) |
-
-Each file exports typed data. Edit the arrays to update content — no code changes needed elsewhere.
-
-Content marked with `/* PLACEHOLDER */` comments should be replaced with your actual information.
-
-## Project Structure
+Create a new `.mdx` file in `src/content/writing/`:
 
 ```
-src/
-  app/            — Next.js App Router (layout + page)
-  components/
-    layout/       — Navigation, Footer, SectionWrapper
-    sections/     — Hero, About, Research, Experience, Projects, Achievements, Writing, Contact
-    ui/           — Button, Card, Badge, SectionHeading, NeuralNetwork
-  hooks/          — useDeviceCapability, useScrollSpy, useReducedMotion
-  lib/            — device-detection, constants
-  data/           — All content data files
-  types/          — TypeScript interfaces
-  __tests__/      — Vitest behavioral tests
+src/content/writing/your-slug.mdx
 ```
 
-## Design System
+**Required frontmatter:**
 
-- **Palette**: Warm cream base, deep sage/teal primary, bronze/copper accents
-- **Typography**: Playfair Display (serif headings) + Inter (sans body)
-- **Glass cards**: Semi-transparent with backdrop blur
-- **Neural glow**: Subtle sage-tinted box shadows
-- **Reduced motion**: All animations disabled when user prefers
+```yaml
+---
+title: "Your Post Title"
+date: 2024-12-01        # YYYY-MM-DD
+type: essay             # or: poetry
+dek: "Optional 8-word descriptor shown in the list view."
+draft: false            # set true to hide from production
+---
+```
+
+**MDX components available:**
+
+| Component | Usage |
+|---|---|
+| `<PullQuote>` | Pull-quoted passage, styled with an amber rule |
+
+**Footnotes** use standard GFM syntax — no component needed:
+
+```
+A claim worth footnoting.[^1]
+
+[^1]: The footnote content, at the bottom of the file.
+```
+
+**Poetry formatting:** Set `type: poetry` and use blank lines between stanzas. Lines within a stanza sit on consecutive lines in the source. The CSS handles `white-space: pre-wrap` and removes text-indent.
+
+---
+
+## Theme toggle
+
+The toggle is in `src/components/ThemeToggle.astro`. On click, it:
+
+1. Reads the current theme from `document.documentElement.dataset.theme`
+2. Triggers `document.startViewTransition()` to capture a screenshot of the current state
+3. Switches the theme by updating `data-theme` on `<html>` and writing to `localStorage`
+4. Animates a `circle()` clip-path expanding from the exact click coordinates on the incoming screen
+
+The animation easing and duration live at the top of the script block. The `prefers-reduced-motion` check skips the animation entirely and applies the theme directly.
+
+On first visit, the theme defaults to the user's `prefers-color-scheme`. Subsequent visits read from `localStorage`.
+
+---
+
+## Design tokens and easing curves
+
+Everything lives in `src/styles/global.css`. The relevant sections:
+
+**Easing:**
+```css
+--ease-enter: cubic-bezier(0.16, 1, 0.3, 1);   /* entrances */
+--ease-exit:  cubic-bezier(0.7, 0, 0.84, 0);    /* exits */
+--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* springy */
+--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);    /* UI micro-interactions */
+```
+
+**Colors (light / dark):**
+```css
+--color-bg          /* page background */
+--color-surface     /* elevated surface (code blocks, etc.) */
+--color-text        /* primary text */
+--color-text-muted  /* secondary text, metadata */
+--color-accent      /* amber: #c47a2e light / #d4892a dark */
+--color-border      /* subtle borders */
+--color-border-strong /* stronger borders */
+```
+
+**Typography:**
+```css
+--font-display: 'Fraunces Variable', Georgia, serif;
+--font-mono:    'JetBrains Mono', 'Courier New', monospace;
+--measure: 65ch;   /* max line length for prose */
+```
+
+Fraunces is a variable font with an optical size axis (`opsz`). The codebase uses `font-variation-settings: 'opsz' N` at key sizes to get the right character:
+- `opsz 144` → hero display (huge, wide)
+- `opsz 72` → page titles
+- `opsz 40` → pull-quotes
+- `opsz 18` → body / list titles
+- `opsz 60` → article subheadings
+
+---
+
+## Deployment
+
+Connected to Vercel via `.vercel/project.json`. Push to `main` deploys automatically. No additional configuration needed — Astro's Vercel adapter is not required for static output (the default).
+
+To force a static build locally:
+
+```bash
+pnpm build
+pnpm preview
+```

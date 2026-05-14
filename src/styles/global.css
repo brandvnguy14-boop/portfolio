@@ -1,0 +1,331 @@
+/* ── Fonts ─────────────────────────────────────────────── */
+@import '@fontsource-variable/fraunces/wght.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/400-italic.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Easing variables ──────────────────────────────────── */
+:root {
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Duration ───────────────────────────────────────── */
+  --dur-fast: 150ms;
+  --dur-base: 280ms;
+  --dur-slow: 500ms;
+
+  /* ── Typography ─────────────────────────────────────── */
+  --font-display: 'Fraunces Variable', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  --measure: 65ch;
+
+  /* ── Colors: light theme ────────────────────────────── */
+  --color-bg: #f7f2ea;
+  --color-surface: #ede8df;
+  --color-text: #0e0e0b;
+  --color-text-muted: #6b6456;
+  --color-accent: #c47a2e;
+  --color-accent-subtle: #c47a2e1a;
+  --color-border: #ddd6c8;
+  --color-border-strong: #b8ae9e;
+}
+
+[data-theme='dark'] {
+  --color-bg: #0e0e0b;
+  --color-surface: #1a1915;
+  --color-text: #f7f2ea;
+  --color-text-muted: #8a8070;
+  --color-accent: #d4892a;
+  --color-accent-subtle: #d4892a1a;
+  --color-border: #2a2820;
+  --color-border-strong: #3d3a30;
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-display);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  transition:
+    background-color var(--dur-base) var(--ease-smooth),
+    color var(--dur-base) var(--ease-smooth);
+}
+
+/* ── Selection ─────────────────────────────────────────── */
+::selection {
+  background-color: var(--color-accent-subtle);
+  color: var(--color-text);
+}
+
+/* ── Focus ─────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ── Mono utility ──────────────────────────────────────── */
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+/* ── Keyframes ─────────────────────────────────────────── */
+@keyframes reveal-up {
+  from {
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+  }
+  to {
+    clip-path: inset(0 0 0% 0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── View Transitions ──────────────────────────────────── */
+@keyframes vt-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes vt-slide-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+::view-transition-old(root) {
+  animation: var(--dur-fast) var(--ease-exit) both vt-slide-out;
+}
+
+::view-transition-new(root) {
+  animation: var(--dur-base) var(--ease-enter) both vt-slide-in;
+}
+
+/* Clip-path theme transition overrides are set inline by ThemeToggle.astro */
+html.theme-transitioning::view-transition-old(root) {
+  animation: none;
+}
+html.theme-transitioning::view-transition-new(root) {
+  animation: none;
+}
+
+/* ── Reduced motion ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
+/* ── Prose styles (post body) ──────────────────────────── */
+.prose {
+  --prose-body: var(--color-text);
+  --prose-muted: var(--color-text-muted);
+  --prose-border: var(--color-border);
+  --prose-accent: var(--color-accent);
+
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: var(--prose-body);
+  max-width: var(--measure);
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  font-variation-settings: 'opsz' 60;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-top: 2.5em;
+  margin-bottom: 0.75em;
+}
+
+.prose h1 { font-size: 2.25rem; }
+.prose h2 { font-size: 1.6rem; }
+.prose h3 { font-size: 1.25rem; }
+
+.prose p {
+  margin-top: 0;
+  margin-bottom: 1.5em;
+}
+
+.prose p + p {
+  text-indent: 1.5em;
+  margin-top: -0.5em;
+}
+
+.prose a {
+  color: var(--prose-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: transparent;
+  transition: text-decoration-color var(--dur-fast) var(--ease-smooth);
+}
+
+.prose a:hover {
+  text-decoration-color: var(--prose-accent);
+}
+
+.prose blockquote {
+  border-left: 3px solid var(--prose-border);
+  margin-left: 0;
+  padding-left: 1.5rem;
+  color: var(--prose-muted);
+  font-style: italic;
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--prose-border);
+  margin: 3em 0;
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background-color: var(--color-surface);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+}
+
+/* ── Footnotes (remark-gfm) ────────────────────────────── */
+.prose .footnotes {
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--prose-border);
+  font-size: 0.875rem;
+  color: var(--prose-muted);
+}
+
+.prose .footnotes ol {
+  padding-left: 1.25rem;
+}
+
+.prose .footnotes li {
+  margin-bottom: 0.5em;
+  line-height: 1.6;
+}
+
+.prose .footnotes li p {
+  margin: 0;
+  text-indent: 0;
+  display: inline;
+}
+
+.prose sup a,
+.prose .footnotes a[data-footnote-backref] {
+  color: var(--prose-accent);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+}
+
+/* ── Poetry ────────────────────────────────────────────── */
+.prose.prose-poetry p {
+  text-indent: 0;
+  margin-bottom: 0.25em;
+  white-space: pre-wrap;
+}
+
+.prose.prose-poetry p + p {
+  text-indent: 0;
+  margin-top: 1.5em;
+}
+
+/* ── Pull-quote component ───────────────────────────────── */
+.pull-quote {
+  font-size: 1.4rem;
+  font-variation-settings: 'opsz' 40;
+  font-style: italic;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  border: none;
+  margin: 2.5rem 0;
+  padding: 0;
+  position: relative;
+}
+
+.pull-quote::before {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 2px;
+  background-color: var(--color-accent);
+  margin-bottom: 1.25rem;
+}
+
+/* ── Reading progress bar ───────────────────────────────── */
+@keyframes reading-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--color-accent);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  z-index: 100;
+  animation: reading-progress linear both;
+  animation-timeline: scroll(root);
+}
+
+@supports not (animation-timeline: scroll()) {
+  .reading-progress {
+    display: none;
+  }
+}

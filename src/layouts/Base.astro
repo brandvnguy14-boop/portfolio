@@ -1,0 +1,138 @@
+---
+import { ViewTransitions } from 'astro:transitions';
+import ThemeToggle from '@/components/ThemeToggle.astro';
+import '@/styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  ogImage?: string;
+}
+
+const { title, description = 'Brandon Nguyen — writing on neuroscience, medicine, and things in between.', ogImage } = Astro.props;
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+
+    <!-- OG -->
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:type" content="website" />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+
+    <title>{title}</title>
+
+    <!-- Theme init: runs before paint to prevent flash -->
+    <script is:inline>
+      (function () {
+        const stored = localStorage.getItem('theme');
+        const preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = stored ?? preferred;
+      })();
+    </script>
+
+    <ViewTransitions />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav">
+        <a href="/" class="site-wordmark" transition:name="site-wordmark">Brandon Nguyen</a>
+        <div class="nav-links">
+          <a href="/writing">Writing</a>
+          <a href="/about">About</a>
+          <ThemeToggle />
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding: 0 clamp(1.5rem, 5vw, 4rem);
+    background-color: var(--color-bg);
+    border-bottom: 1px solid transparent;
+    transition:
+      border-color var(--dur-base) var(--ease-smooth),
+      background-color var(--dur-base) var(--ease-smooth);
+  }
+
+  .site-header.scrolled {
+    border-bottom-color: var(--color-border);
+  }
+
+  .site-nav {
+    max-width: 72rem;
+    margin: 0 auto;
+    height: 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .site-wordmark {
+    font-variation-settings: 'opsz' 72;
+    font-size: 1.05rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--color-text);
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-smooth);
+  }
+
+  .site-wordmark:hover {
+    color: var(--color-accent);
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .nav-links a {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-smooth);
+  }
+
+  .nav-links a:hover {
+    color: var(--color-text);
+  }
+</style>
+
+<script>
+  function initScrollBorder() {
+    const header = document.querySelector('.site-header');
+    if (!header) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => header.classList.toggle('scrolled', !entry.isIntersecting),
+      { rootMargin: '-1px 0px 0px 0px', threshold: 1 }
+    );
+    const sentinel = document.createElement('div');
+    sentinel.style.cssText = 'position:absolute;top:0;left:0;height:1px;width:1px;pointer-events:none';
+    document.body.prepend(sentinel);
+    obs.observe(sentinel);
+  }
+
+  document.addEventListener('astro:page-load', initScrollBorder);
+</script>

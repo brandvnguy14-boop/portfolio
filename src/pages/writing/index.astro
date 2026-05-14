@@ -1,0 +1,181 @@
+---
+import Base from '@/layouts/Base.astro';
+import FilterPills from '@/components/FilterPills.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('writing', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+---
+
+<Base title="Writing — Brandon Nguyen" description="Essays and poetry by Brandon Nguyen.">
+  <div class="writing-wrap">
+    <header class="writing-header">
+      <h1 class="writing-title">Writing</h1>
+    </header>
+
+    <FilterPills active="all" />
+
+    <ul class="writing-list">
+      {posts.map((post, i) => {
+        const formatted = post.data.date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+        return (
+          <li
+            class="writing-row"
+            data-type={post.data.type}
+            style={`--index: ${i}`}
+          >
+            <a href={`/writing/${post.slug}`} class="writing-link">
+              <div class="writing-link-inner">
+                <span class="writing-row-title" transition:name={`title-${post.slug}`}>
+                  {post.data.title}
+                </span>
+                {post.data.dek && (
+                  <span class="writing-row-dek">{post.data.dek}</span>
+                )}
+              </div>
+              <div class="writing-row-meta">
+                <time class="mono" datetime={post.data.date.toISOString()}>{formatted}</time>
+                <span class="writing-row-type mono" data-type={post.data.type}>
+                  {post.data.type}
+                </span>
+              </div>
+            </a>
+            <div class="writing-row-rule" aria-hidden="true"></div>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+</Base>
+
+<style>
+  .writing-wrap {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: clamp(3rem, 8vw, 6rem) clamp(1.5rem, 5vw, 4rem) 8rem;
+  }
+
+  .writing-header {
+    margin-bottom: 3rem;
+  }
+
+  .writing-title {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-variation-settings: 'opsz' 72;
+    font-weight: 400;
+    letter-spacing: -0.035em;
+    line-height: 1.05;
+    margin: 0;
+  }
+
+  /* ── List ────────────────────────────────────────────── */
+  .writing-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .writing-row {
+    position: relative;
+    border-top: 1px solid var(--color-border);
+    /* staggered entrance */
+    animation: slide-up var(--dur-slow) var(--ease-enter) both;
+    animation-delay: calc(var(--index, 0) * 30ms + 100ms);
+  }
+
+  .writing-row:last-child {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .writing-link {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 2rem;
+    padding: 1.25rem 0;
+    text-decoration: none;
+    color: var(--color-text);
+    position: relative;
+    z-index: 1;
+  }
+
+  .writing-link-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .writing-row-title {
+    font-size: 1.1rem;
+    font-variation-settings: 'opsz' 18;
+    line-height: 1.3;
+    transition: color var(--dur-fast) var(--ease-smooth);
+  }
+
+  .writing-link:hover .writing-row-title {
+    color: var(--color-accent);
+  }
+
+  .writing-row-dek {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    line-height: 1.45;
+    max-width: 60ch;
+  }
+
+  .writing-row-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    padding-top: 0.15rem;
+    white-space: nowrap;
+  }
+
+  .writing-row-meta time {
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+  }
+
+  .writing-row-type {
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+
+  /* Animated rule on hover */
+  .writing-row-rule {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: var(--color-accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--dur-base) var(--ease-enter);
+    pointer-events: none;
+  }
+
+  .writing-row:hover .writing-row-rule {
+    transform: scaleX(1);
+  }
+
+  @media (max-width: 40rem) {
+    .writing-link {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+
+    .writing-row-meta {
+      align-items: flex-start;
+      flex-direction: row;
+      gap: 1rem;
+    }
+  }
+</style>

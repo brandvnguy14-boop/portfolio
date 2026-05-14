@@ -1,0 +1,63 @@
+---
+import Base from '@/layouts/Base.astro';
+---
+
+<Base
+  title="About — Brandon Nguyen"
+  description="Neuroscience student at UVA. Writing about the brain, medicine, and things in between."
+>
+  <div class="about-wrap">
+    <header class="about-header">
+      <h1 class="about-title">About</h1>
+    </header>
+
+    <div class="prose about-prose">
+      <p>
+        I'm Brandon Nguyen, a neuroscience student at the University of Virginia on the pre-med track.
+        I grew up thinking science and writing were separate languages. They're not — they just share an
+        uneasy border, and I'm interested in what lives there.
+      </p>
+
+      <p>
+        This site is where I write. Essays tend toward the analytical: how the brain makes predictions,
+        what fMRI can and can't tell us, why medicine is as much a humanistic discipline as a technical one.
+        Poetry is something else entirely — shorter, less interested in argument, more interested in what
+        can't be said directly.
+      </p>
+
+      <p>
+        I'm also a builder. I make things when making helps me understand something, which is most of the time.
+      </p>
+
+      <p>
+        If something here is worth talking about, you can find me at{' '}
+        <a href="mailto:qweelut1@gmail.com">qweelut1@gmail.com</a>.
+      </p>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .about-wrap {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: clamp(3rem, 8vw, 6rem) clamp(1.5rem, 5vw, 4rem) 8rem;
+  }
+
+  .about-header {
+    margin-bottom: 3rem;
+  }
+
+  .about-title {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-variation-settings: 'opsz' 72;
+    font-weight: 400;
+    letter-spacing: -0.035em;
+    line-height: 1.05;
+    margin: 0;
+  }
+
+  .about-prose {
+    font-size: 1.125rem;
+  }
+</style>

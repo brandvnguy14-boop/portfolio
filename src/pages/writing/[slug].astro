@@ -1,0 +1,26 @@
+---
+import { getCollection } from 'astro:content';
+import PostLayout from '@/layouts/Post.astro';
+import PullQuote from '@/components/PullQuote.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('writing', ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: { slug: post.slug },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await post.render();
+---
+
+<PostLayout
+  title={post.data.title}
+  date={post.data.date}
+  type={post.data.type}
+  dek={post.data.dek}
+  slug={post.slug}
+>
+  <Content components={{ PullQuote }} />
+</PostLayout>

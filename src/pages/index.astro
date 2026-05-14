@@ -1,0 +1,191 @@
+---
+import Base from '@/layouts/Base.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('writing', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .slice(0, 3);
+---
+
+<Base title="Brandon Nguyen">
+  <section class="hero">
+    <div class="hero-inner">
+      <h1 class="hero-name reveal-line" style="--delay: 0ms">Brandon Nguyen</h1>
+      <p class="hero-bio reveal-line" style="--delay: 80ms">
+        Neuroscience @ UVA. Writing about the brain, medicine, and things in between.
+      </p>
+      <nav class="hero-links reveal-line" style="--delay: 160ms">
+        <a href="/writing">Writing</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <a href="/about">About</a>
+      </nav>
+    </div>
+  </section>
+
+  {posts.length > 0 && (
+    <section class="recent-posts">
+      <div class="recent-inner">
+        <h2 class="recent-label mono">Recent</h2>
+        <ul class="recent-list">
+          {posts.map((post) => {
+            const formatted = post.data.date.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+            });
+            return (
+              <li class="recent-item">
+                <a href={`/writing/${post.slug}`} class="recent-link">
+                  <span class="recent-title">{post.data.title}</span>
+                  <time class="recent-date mono" datetime={post.data.date.toISOString()}>
+                    {formatted}
+                  </time>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+        <a href="/writing" class="all-writing mono">All writing &#8594;</a>
+      </div>
+    </section>
+  )}
+</Base>
+
+<style>
+  /* ── Hero ─────────────────────────────────────────────── */
+  .hero {
+    display: flex;
+    align-items: center;
+    min-height: calc(90svh - 4rem);
+    padding: 0 clamp(1.5rem, 5vw, 4rem);
+  }
+
+  .hero-inner {
+    max-width: 72rem;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .hero-name {
+    font-size: clamp(3.5rem, 10vw, 8rem);
+    font-variation-settings: 'opsz' 144;
+    font-weight: 400;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    margin: 0 0 2rem;
+    color: var(--color-text);
+  }
+
+  .hero-bio {
+    font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin: 0 0 2.5rem;
+    max-width: 48ch;
+    font-variation-settings: 'opsz' 18;
+    font-style: italic;
+  }
+
+  .hero-links {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .hero-links a {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-smooth);
+  }
+
+  .hero-links a:hover {
+    color: var(--color-accent);
+  }
+
+  .sep {
+    color: var(--color-border-strong);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  /* ── Entrance animations ────────────────────────────── */
+  .reveal-line {
+    animation: reveal-up var(--dur-slow) var(--ease-enter) both;
+    animation-delay: var(--delay, 0ms);
+  }
+
+  /* ── Recent posts ────────────────────────────────────── */
+  .recent-posts {
+    padding: 0 clamp(1.5rem, 5vw, 4rem) 8rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .recent-inner {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding-top: 3rem;
+  }
+
+  .recent-label {
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 0 0 1.5rem;
+  }
+
+  .recent-list {
+    list-style: none;
+    margin: 0 0 2rem;
+    padding: 0;
+  }
+
+  .recent-item {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .recent-item:last-child {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .recent-link {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2rem;
+    padding: 1.1rem 0;
+    text-decoration: none;
+    color: var(--color-text);
+    transition: color var(--dur-fast) var(--ease-smooth);
+  }
+
+  .recent-link:hover {
+    color: var(--color-accent);
+  }
+
+  .recent-title {
+    font-size: 1.05rem;
+    font-variation-settings: 'opsz' 18;
+  }
+
+  .recent-date {
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    font-size: 0.72rem;
+  }
+
+  .all-writing {
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-smooth);
+  }
+
+  .all-writing:hover {
+    color: var(--color-accent);
+  }
+</style>
