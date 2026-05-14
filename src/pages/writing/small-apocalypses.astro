@@ -1,0 +1,895 @@
+---
+import Base from '@/layouts/Base.astro';
+---
+
+<Base title="Small Apocalypses — Brandon Nguyen" description="A lexicon of endings and beginnings. Seven poems.">
+  <div class="room" id="room">
+    <a href="/writing" class="room-back mono">← Writing</a>
+
+    <div class="book-wrap" id="book-wrap">
+      <div class="book" id="book" role="document" aria-label="Small Apocalypses, a poetry collection">
+
+        <!-- Static pages -->
+        <div class="page page-l" id="page-l" aria-live="polite" aria-label="Left page"></div>
+        <div class="page page-r" id="page-r" aria-live="polite" aria-label="Right page">
+          <button class="corner-zone" id="corner-zone" aria-label="Turn to next page" tabindex="0">
+            <div class="corner-curl" aria-hidden="true"></div>
+          </button>
+        </div>
+
+        <!-- Book spine -->
+        <div class="spine" aria-hidden="true">
+          <div class="spine-shadow-l" aria-hidden="true"></div>
+          <div class="spine-shadow-r" aria-hidden="true"></div>
+        </div>
+
+        <!-- The turning leaf -->
+        <div class="leaf" id="leaf" aria-hidden="true">
+          <div class="leaf-front" id="leaf-front"></div>
+          <div class="leaf-back" id="leaf-back"></div>
+        </div>
+
+        <!-- Shadow cast during flip -->
+        <div class="flip-shadow" id="flip-shadow" aria-hidden="true"></div>
+
+        <!-- Click zones (cover the full pages, behind content) -->
+        <button class="click-zone click-zone-l" id="click-prev" aria-label="Previous page" disabled></button>
+        <button class="click-zone click-zone-r" id="click-next" aria-label="Next page"></button>
+      </div>
+
+      <!-- Dots nav -->
+      <div class="dots-row" role="tablist" aria-label="Navigate spreads" id="dots-row"></div>
+      <p class="flip-hint mono" id="flip-hint">click to turn · ← → to navigate</p>
+    </div>
+  </div>
+</Base>
+
+<style is:global>
+/* ── Room ──────────────────────────────────────────────── */
+.room {
+  min-height: calc(100svh - 4rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem clamp(1rem, 4vw, 3rem) 3rem;
+  background-color: var(--color-bg);
+  position: relative;
+}
+
+.room-back {
+  position: absolute;
+  top: 1.5rem;
+  left: clamp(1rem, 4vw, 3rem);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-smooth);
+}
+.room-back:hover { color: var(--color-accent); }
+
+/* ── Book wrap ─────────────────────────────────────────── */
+.book-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  animation: book-rise 0.7s var(--ease-enter) both;
+  animation-delay: 0.1s;
+}
+
+@keyframes book-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Book ──────────────────────────────────────────────── */
+.book {
+  --page-w: clamp(220px, 28vw, 360px);
+  --page-h: calc(var(--page-w) * 1.55);
+  --page-bg: #f5efe3;
+  --page-text: #1c1810;
+  --page-muted: #8a7c68;
+  --cover-bg: #141210;
+  --cover-text: #f0e8d8;
+  --flip-dur: 660ms;
+  --flip-ease: cubic-bezier(0.645, 0.045, 0.355, 1.000);
+
+  position: relative;
+  width: calc(var(--page-w) * 2);
+  height: var(--page-h);
+  perspective: 3000px;
+  filter: drop-shadow(0 24px 40px rgba(0,0,0,0.22)) drop-shadow(0 8px 12px rgba(0,0,0,0.12));
+}
+
+[data-theme='dark'] .book {
+  --page-bg: #f0e8d6;
+  --page-text: #1c1810;
+  --page-muted: #7a6e5c;
+  filter: drop-shadow(0 24px 48px rgba(0,0,0,0.5)) drop-shadow(0 8px 16px rgba(0,0,0,0.3));
+}
+
+/* ── Pages ─────────────────────────────────────────────── */
+.page {
+  position: absolute;
+  top: 0;
+  width: var(--page-w);
+  height: var(--page-h);
+  background: var(--page-bg);
+  overflow: hidden;
+}
+
+.page-l { left: 0; border-radius: 2px 0 0 2px; }
+.page-r { right: 0; border-radius: 0 2px 2px 0; }
+
+/* Subtle page gradient (ambient light from top) */
+.page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Spine ─────────────────────────────────────────────── */
+.spine {
+  position: absolute;
+  top: 0;
+  left: calc(var(--page-w) - 1px);
+  width: 2px;
+  height: 100%;
+  z-index: 10;
+}
+.spine-shadow-l {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 24px;
+  height: 100%;
+  background: linear-gradient(to left, rgba(0,0,0,0.10), transparent);
+}
+.spine-shadow-r {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  width: 24px;
+  height: 100%;
+  background: linear-gradient(to right, rgba(0,0,0,0.10), transparent);
+}
+
+/* ── Leaf ──────────────────────────────────────────────── */
+.leaf {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: var(--page-w);
+  width: var(--page-w);
+  height: var(--page-h);
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  z-index: 20;
+}
+
+.leaf-front,
+.leaf-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: var(--page-bg);
+  border-radius: 0 2px 2px 0;
+  overflow: hidden;
+}
+
+.leaf-back {
+  transform: rotateY(180deg);
+  border-radius: 2px 0 0 2px;
+}
+
+/* Edge gradient on the leaf (simulates paper thickness) */
+.leaf-front::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  background: linear-gradient(to right, transparent, rgba(0,0,0,0.06));
+  pointer-events: none;
+}
+
+/* ── Flip shadow ──────────────────────────────────────── */
+.flip-shadow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, transparent 45%, rgba(0,0,0,0.15) 50%, transparent 55%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+
+/* ── Click zones ──────────────────────────────────────── */
+.click-zone {
+  position: absolute;
+  top: 0;
+  width: var(--page-w);
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 5;
+  padding: 0;
+}
+.click-zone:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+.click-zone-l { left: 0; cursor: w-resize; }
+.click-zone-r { right: 0; cursor: e-resize; }
+.click-zone[disabled] { cursor: default; pointer-events: none; }
+
+/* ── Corner hint ──────────────────────────────────────── */
+.corner-zone {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 64px;
+  height: 64px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  z-index: 6;
+}
+.corner-zone:focus-visible { outline: none; }
+
+.corner-curl {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.corner-curl::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  transition: all 0.3s var(--ease-enter);
+  border-style: solid;
+  border-width: 0 0 0 0;
+  border-color: transparent transparent #d8cbb8 transparent;
+}
+
+.corner-curl::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  clip-path: polygon(100% 40%, 100% 100%, 40% 100%);
+  background: linear-gradient(135deg, #c8b99a 0%, #e0d0b8 50%, #d0c0a2 100%);
+  box-shadow: -3px -3px 8px rgba(0,0,0,0.12);
+  width: 52px;
+  height: 52px;
+  animation: corner-breathe 2.8s ease-in-out infinite;
+  transform-origin: bottom right;
+}
+
+@keyframes corner-breathe {
+  0%, 100% {
+    clip-path: polygon(100% 50%, 100% 100%, 50% 100%);
+    width: 44px;
+    height: 44px;
+  }
+  45% {
+    clip-path: polygon(100% 20%, 100% 100%, 20% 100%);
+    width: 56px;
+    height: 56px;
+  }
+}
+
+.book.flipped-once .corner-curl::after {
+  animation: none;
+  clip-path: polygon(100% 60%, 100% 100%, 60% 100%);
+  width: 36px;
+  height: 36px;
+  opacity: 0.5;
+}
+
+/* ── Page content: global (rendered via innerHTML) ───── */
+.pg {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 2.25rem 2rem;
+  color: var(--page-text);
+  font-family: var(--font-display);
+  position: relative;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.pg::-webkit-scrollbar { display: none; }
+
+/* Scroll fade indicator */
+.pg::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, var(--page-bg));
+  pointer-events: none;
+  margin-top: -40px;
+  flex-shrink: 0;
+}
+
+/* Cover */
+.pg-cover {
+  background: var(--cover-bg);
+  color: var(--cover-text);
+  justify-content: space-between;
+  padding: 2.5rem 2rem;
+}
+.pg-cover::after { background: linear-gradient(to bottom, transparent, var(--cover-bg)); }
+
+.cover-top {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.cover-rule {
+  width: 2rem;
+  height: 1px;
+  background: #c47a2e;
+}
+.cover-title {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-variation-settings: 'opsz' 72;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: #f0e8d8;
+  margin: 0;
+}
+.cover-sub {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  color: #c47a2e;
+  margin: 0;
+  text-transform: uppercase;
+}
+.cover-count {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: #786858;
+  letter-spacing: 0.04em;
+  margin-top: 0.5rem;
+}
+.cover-author {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: #786858;
+  letter-spacing: 0.04em;
+}
+
+/* Blank */
+.pg-blank {
+  background: #ede6d8;
+}
+
+/* Preface */
+.pg-preface {}
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--page-muted);
+  margin: 0 0 1.5rem;
+}
+.preface-body p {
+  font-size: 0.82rem;
+  line-height: 1.75;
+  color: var(--page-text);
+  margin: 0 0 0.9em;
+  font-style: italic;
+}
+
+/* Poem */
+.poem-number {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accent, #c47a2e);
+  margin: 0 0 0.5rem;
+}
+.poem-title {
+  font-size: clamp(1.15rem, 2.5vw, 1.4rem);
+  font-variation-settings: 'opsz' 40;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--page-text);
+  margin: 0 0 0.4rem;
+}
+.poem-etym {
+  font-size: 0.68rem;
+  font-style: italic;
+  color: var(--page-muted);
+  margin: 0 0 1.25rem;
+  line-height: 1.4;
+}
+.poem-rule {
+  width: 1.5rem;
+  height: 1px;
+  background: #c47a2e;
+  margin-bottom: 1.25rem;
+}
+.poem-body {
+  flex: 1;
+}
+.stanza {
+  font-size: 0.78rem;
+  line-height: 1.78;
+  color: var(--page-text);
+  white-space: pre-wrap;
+  margin: 0 0 0.9em;
+}
+
+/* End page */
+.pg-end {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.end-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+.end-rule {
+  width: 2rem;
+  height: 1px;
+  background: var(--page-muted);
+}
+.end-finis {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--page-muted);
+}
+.end-title {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--page-muted);
+  margin-top: 0.25rem;
+}
+
+/* Page number */
+.pg-num {
+  position: absolute;
+  bottom: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--page-muted);
+  letter-spacing: 0.04em;
+}
+.pg-num-l { left: 2rem; }
+.pg-num-r { right: 2rem; }
+
+/* ── Navigation dots ──────────────────────────────────── */
+.dots-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+.dot[aria-selected='true'] {
+  background: var(--color-accent);
+  transform: scale(1.3);
+}
+
+.flip-hint {
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin: 0;
+  text-align: center;
+  opacity: 0.7;
+}
+
+/* ── Mobile: single page ───────────────────────────────── */
+@media (max-width: 600px) {
+  .book {
+    --page-w: min(calc(100vw - 2rem), 320px);
+    width: var(--page-w);
+  }
+  .page-l { display: none; }
+  .page-r { left: 0; right: auto; border-radius: 2px; }
+  .spine { display: none; }
+  .click-zone-l { display: none; }
+  .click-zone-r { left: 0; width: 100%; }
+  .leaf { left: 0; }
+}
+
+/* ── Reduced motion ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .corner-curl::after { animation: none; }
+  .book-wrap { animation: none; }
+}
+</style>
+
+<script>
+// ── Collection data ─────────────────────────────────────
+const C = {
+  title: 'Small Apocalypses',
+  subtitle: 'a lexicon of endings and beginnings',
+  count: 'seven poems',
+  preface: [
+    'I have been preoccupied, for as long as I can remember, with what happens after something ceases to be. Not the cinematic kind, but the smaller afterlives that arrive without spectacle: the hum a room retains after the music stops, the way a voice keeps almost-arriving in the days after a funeral, the half-second of smoke after a candle is blown out, and the present tips, irretrievably, into the past.',
+    'This collection is an attempt to build a small lexicon for those afterlives. Each poem takes a single word and tries to press it open. Language is our most beautiful failure. It cannot hold the dead. It cannot return the porch, the name no one calls anymore, the cowbell in the soldier\'s dream.',
+    'But the dictionary is also a garden: every entry, a small refusal of forgetting. I wrote these poems in that double light—the world ending, the world beginning, and a word, somewhere in the middle, doing what it can.',
+  ],
+  poems: [
+    {
+      n: 'I', title: 'Apocalypse',
+      etym: 'Greek apokalypsis: an uncovering, an unveiling',
+      stanzas: [
+        'The world doesn\'t end all at once.\n\nIt ends in moments. The 2 a.m. silence\nthat feels less like quiet and more\nlike something listening back.\nThe sunset that holds on too long,\nas if the day knows what I do not.',
+        'I was eight the first time I believed.\nA live stream. An asteroid. The chicken\nsandwich on my plate became a stone.\nI asked my cousin, after church,\nif the world would end soon.\nNot for a million years, he said,\nif ever.',
+        'To a child, a million years\nis a synonym for tomorrow.',
+        'The Greek does not mean\ndestruction.\nIt means:\nto lift the veil.\nTo see, for one bright second,\nthe shape of a thing as it actually is.',
+        'Maybe this is why I cannot stop watching.\nMaybe the end is not what I fear\nbut what I have been waiting for—\nthe moment the curtain lifts\nand I finally understand\nwhich world I have been living in.',
+      ]
+    },
+    {
+      n: 'II', title: 'Entropy',
+      etym: 'the tendency of all closed systems toward disorder',
+      stanzas: [
+        'A physicist told me once\nthat the universe is forgetting itself.\nSlowly. Evenly. With great patience.',
+        'Diseases, she said, are only molecules\nmisbehaving. The body is a borrowed\narrangement. Death, the cessation\nof a chemistry that was never ours\nto keep.',
+        'And yet.',
+        'My grandfather\'s voice was a chemistry.\nThe way he said my name on the porch\nwas a chemistry. The chicken sandwich,\nthe live stream, the cousin in his suit\nafter church—all of it, chemistry.',
+        'The second law says the heat will spread.\nThe cup of coffee on the desk\nwill cool to match the room.\nThe room will cool to match the house.\nThe house will cool to match the world.\nThe world will cool to match the dark.',
+        'This is the apocalypse no one televises.\nIt is happening now. It is happening\nin your hands, on this page,\nas the warmth of your fingers\nbleeds into the paper\nand the paper bleeds into the air\nand the air forgets, as it must,\nthat you were ever here.',
+      ]
+    },
+    {
+      n: 'III', title: 'Nostalgia',
+      etym: 'Greek nostos (homecoming) + algos (pain)',
+      stanzas: [
+        'Once, it was a diagnosis.\nSwiss mercenaries, in the lowlands\nof seventeenth-century France,\ndied of it. A fatal homesickness.\nDoctors prescribed leeches, opium,\na journey to higher ground.\nSome men were simply sent home\nto be cured or buried.',
+        'I think the word still kills.\nJust slower. Just quieter.',
+        'Last week I tried to remember\nthe sound of my grandfather\'s voice\nand could not. The word\ngrandfather\nwas a closed door. The word\nvoice\nwas a closed door. I had the keys\nand none of them fit.',
+        'There is no language for this:\nthe homesickness for a person\nwho is the home.',
+        'Somewhere in the word, a soldier\nis still dying of his fever,\ndreaming of the cowbells,\nthe angle of light through a window\nhis mother stood beside, once,\na long time ago,\ncalling him in for supper\nin a voice he can no longer hear.',
+      ]
+    },
+    {
+      n: 'IV', title: 'Apostasy',
+      etym: 'Greek apostasia: a standing-off',
+      stanzas: [
+        'Not a slamming of the door.\nNot a renunciation, screamed.\nJust the small geometry\nof taking a step back—',
+        'the body, in its mute wisdom,\nunderstanding before the mind.',
+        'I asked my mother, when I was small,\nif the world would end.\nIf it happens, it happens,\nshe said. If we die, we die.',
+        'Mothers are supposed to lie\nabout these things. Aren\'t they?',
+        'In the pew, I watched my cousin\nmouth the words he no longer believed,\nand I understood, before I had the word,\nthat this is what most faith looks like:\nnot a leaving, but a standing-off,\na slow gradient of distance\nmeasured in unanswered prayers.',
+        'The Greek does not mean\nbetrayal.\nIt means: I was here, and now\nI am standing slightly farther away.\nIt means the cathedral is still beautiful\nfrom the field across the road.',
+        'The world did not end that night.\nIt kept spinning, and so did I,\nthough something in me had stepped back\nand refused, ever after, to come closer.',
+      ]
+    },
+    {
+      n: 'V', title: 'Palimpsest',
+      etym: 'a manuscript scraped clean and written over',
+      stanzas: [
+        'In the medieval scriptoria,\nwhen parchment grew scarce,\nthe monks would scrape the old text\nfrom the page and write a new one\non top of it.',
+        'Sometimes, centuries later,\nunder ultraviolet light,\nthe older words rise up\nthrough the newer ones—',
+        'a Greek treatise\non the workings of the body,\nburied beneath\na book of psalms.',
+        'This is what I am, I think.\nThis is what we all are.',
+        'Cells in the body, I have read,\ndie and renew constantly.\nI am a walking palimpsest,\nrewritten with each heartbeat,\nthe old text faintly visible\nbeneath the new.',
+        'We cease to be and regenerate\na thousand times a day.\nHold the page to the light.\nYou will see them all.',
+      ]
+    },
+    {
+      n: 'VI', title: 'Genesis',
+      etym: 'Greek genesis: origin, the act of becoming',
+      stanzas: [
+        'For every apocalypse, a beginning.\nThis is the part I keep forgetting.',
+        'The soil, stripped bare by greed,\nbegins to heal under patient hands.\nUrban gardens sprout from the skeletons\nof abandoned factories. The vine\nfinds the crack in the concrete\nand calls it home.',
+        'In the show I used to watch,\na brother\'s world ended\nthe night his sister was born.\nShe had to be hidden. The law\npermitted only one child.\nAnd so, in the moment of her arrival,\nthe life he had known dissolved—',
+        'his freedom, his quiet, his future.\nAll of it, gone. Replaced\nby the small, breathing weight\nof a person he would have to protect\nwith everything he was.',
+        'This is what I want to say:\nevery birth is a kind of ending.\nEvery ending, a birth in disguise.',
+        'The Greek root gen gives us generation,\ngenesis, generous, kin. It also gives us\ngene—the small, stubborn instruction\nthe body passes on, even in dying.',
+        'Even the molecules misbehaving\nare, in their way, still teaching\nthe next molecules what to do.',
+      ]
+    },
+    {
+      n: 'VII', title: 'Present',
+      etym: 'Latin praesens: being at hand, standing before',
+      stanzas: [
+        'The Polaroid develops in the palm.\nThe chemicals do their slow, bright work.\nAnd the moment it finishes,\nthe present is already the past.',
+        'There is no escape from the present.\nThis is the trick the word performs:\nit cannot be kept, only inhabited.\nIt cannot be saved, only spent.',
+        'I have spent so much of mine\nbracing. The asteroid. The wave.\nThe bright flash on the horizon.\nThe doomscroll at 2 a.m.,\ninoculating myself against a future\nI cannot, in any case, prevent.',
+        'And the small ones, too—\nthe histories erased,\nthe cultures dissolved into white noise,\nthe TikTok I forgot two scrolls ago,\nthe last note of a song\nI will never hear again,\nthe moment I forgot\nthe sound of my grandfather\'s voice.',
+        'Tiny deaths. Accumulating\nlike dust on forgotten bookshelves.',
+        'But here is the thing about dust:\nit is mostly the body. Mostly skin.\nMostly the small, particulate proof\nthat someone was here, and breathing,\nand is here, still, in this room,\non this page, in this present\nthat will not stop becoming the past.',
+        'Listen. Can you hear it?\n\nThe world is always ending.\nAnd it is always just about to begin.',
+      ]
+    },
+  ]
+};
+
+// ── Spreads definition ──────────────────────────────────
+const SPREADS = [
+  { l: { t: 'blank' },   r: { t: 'cover' } },
+  { l: { t: 'preface' }, r: { t: 'poem', i: 0 } },
+  { l: { t: 'poem', i: 1 }, r: { t: 'poem', i: 2 } },
+  { l: { t: 'poem', i: 3 }, r: { t: 'poem', i: 4 } },
+  { l: { t: 'poem', i: 5 }, r: { t: 'poem', i: 6 } },
+  { l: { t: 'end' },     r: { t: 'blank' } },
+];
+
+// ── Page rendering ──────────────────────────────────────
+function renderPage(spec: { t: string; i?: number }, side: 'l' | 'r', spreadIdx: number): string {
+  const pageNum = spreadIdx * 2 + (side === 'l' ? 0 : 1);
+  const numEl = (align: string) =>
+    pageNum > 0 && pageNum < SPREADS.length * 2 - 1
+      ? `<span class="pg-num pg-num-${align}">${pageNum}</span>`
+      : '';
+
+  if (spec.t === 'blank') return `<div class="pg pg-blank"></div>`;
+
+  if (spec.t === 'cover') {
+    return `<div class="pg pg-cover">
+      <div class="cover-top">
+        <div class="cover-rule"></div>
+        <h1 class="cover-title">${C.title}</h1>
+        <p class="cover-sub">${C.subtitle}</p>
+        <p class="cover-count">${C.count}</p>
+      </div>
+      <div class="cover-author">Brandon Nguyen</div>
+    </div>`;
+  }
+
+  if (spec.t === 'preface') {
+    const ps = C.preface.map(p => `<p>${p}</p>`).join('');
+    return `<div class="pg pg-preface">
+      <p class="section-label">Preface</p>
+      <div class="preface-body">${ps}</div>
+      ${numEl('l')}
+    </div>`;
+  }
+
+  if (spec.t === 'poem') {
+    const p = C.poems[spec.i!];
+    const stanzas = p.stanzas.map(s => `<p class="stanza">${s}</p>`).join('');
+    return `<div class="pg">
+      <p class="poem-number">${p.n}</p>
+      <h2 class="poem-title">${p.title}</h2>
+      <p class="poem-etym">${p.etym}</p>
+      <div class="poem-rule"></div>
+      <div class="poem-body">${stanzas}</div>
+      ${numEl(side)}
+    </div>`;
+  }
+
+  if (spec.t === 'end') {
+    return `<div class="pg pg-end">
+      <div class="end-inner">
+        <div class="end-rule"></div>
+        <span class="end-finis">finis</span>
+        <div class="end-rule"></div>
+        <p class="end-title">${C.title}</p>
+      </div>
+    </div>`;
+  }
+
+  return '';
+}
+
+// ── Paper flip sound ─────────────────────────────────────
+function playFlipSound(forward = true) {
+  try {
+    const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const dur = 0.38;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(forward ? 3200 : 1800, ctx.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(forward ? 700 : 400, ctx.currentTime + 0.28);
+    bp.Q.value = 0.7;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.38);
+
+    src.connect(bp); bp.connect(gain); gain.connect(ctx.destination);
+    src.start();
+    setTimeout(() => ctx.close(), 900);
+  } catch {}
+}
+
+// ── Book flip controller ─────────────────────────────────
+function initBook() {
+  const book     = document.getElementById('book')!;
+  const pageL    = document.getElementById('page-l')!;
+  const pageR    = document.getElementById('page-r')!;
+  const leaf     = document.getElementById('leaf')!;
+  const leafFront = document.getElementById('leaf-front')!;
+  const leafBack  = document.getElementById('leaf-back')!;
+  const shadow   = document.getElementById('flip-shadow')!;
+  const dotsRow  = document.getElementById('dots-row')!;
+  const hint     = document.getElementById('flip-hint')!;
+  const btnPrev  = document.getElementById('click-prev') as HTMLButtonElement;
+  const btnNext  = document.getElementById('click-next') as HTMLButtonElement;
+  const cornerBtn = document.getElementById('corner-zone')!;
+
+  let current = 0;
+  let flipping = false;
+
+  // Build dots
+  SPREADS.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'dot';
+    dot.setAttribute('role', 'tab');
+    dot.setAttribute('aria-label', `Spread ${i + 1} of ${SPREADS.length}`);
+    dot.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+    dot.addEventListener('click', () => goTo(i));
+    dotsRow.appendChild(dot);
+  });
+
+  function updateDots() {
+    dotsRow.querySelectorAll('.dot').forEach((d, i) =>
+      d.setAttribute('aria-selected', i === current ? 'true' : 'false')
+    );
+    (btnPrev as HTMLButtonElement).disabled = current === 0;
+    (btnNext as HTMLButtonElement).disabled = current === SPREADS.length - 1;
+    if (current === SPREADS.length - 1) cornerBtn.setAttribute('disabled', '');
+    else cornerBtn.removeAttribute('disabled');
+  }
+
+  function renderSpread(idx: number) {
+    const s = SPREADS[idx];
+    pageL.innerHTML = renderPage(s.l, 'l', idx);
+    pageR.innerHTML = renderPage(s.r, 'r', idx) +
+      (idx < SPREADS.length - 1
+        ? `<button class="corner-zone" id="corner-zone" aria-label="Turn to next page"><div class="corner-curl" aria-hidden="true"></div></button>`
+        : '');
+    // Re-bind corner button after innerHTML swap
+    const newCorner = pageR.querySelector('#corner-zone');
+    if (newCorner) newCorner.addEventListener('click', () => flip(1));
+    updateDots();
+  }
+
+  function animateShadow(durationMs: number) {
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / durationMs, 1);
+      shadow.style.opacity = String(Math.sin(p * Math.PI) * 0.22);
+      if (p < 1) requestAnimationFrame(tick);
+      else shadow.style.opacity = '0';
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function flip(dir: 1 | -1) {
+    if (flipping) return;
+    const next = current + dir;
+    if (next < 0 || next >= SPREADS.length) return;
+
+    flipping = true;
+    book.classList.add('flipped-once');
+    hint.style.opacity = '0';
+
+    const cur = SPREADS[current];
+    const nxt = SPREADS[next];
+
+    if (dir === 1) {
+      // Forward: leaf starts at 0, flips to -180
+      leafFront.innerHTML = renderPage(cur.r, 'r', current);
+      leafBack.innerHTML  = renderPage(nxt.l, 'l', next);
+      leaf.style.transition = 'none';
+      leaf.style.transform  = 'rotateY(0deg)';
+      leaf.style.display    = 'block';
+      pageR.style.visibility = 'hidden';
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        leaf.style.transition = `transform var(--flip-dur) var(--flip-ease)`;
+        leaf.style.transform  = 'rotateY(-180deg)';
+        animateShadow(660);
+        playFlipSound(true);
+      }));
+    } else {
+      // Backward: leaf starts at -180, flips to 0
+      leafFront.innerHTML = renderPage(cur.l, 'l', current);  // will become right of prev
+      leafBack.innerHTML  = renderPage(nxt.r, 'r', next);     // currently showing
+      leaf.style.transition = 'none';
+      leaf.style.transform  = 'rotateY(-180deg)';
+      leaf.style.display    = 'block';
+      pageL.style.visibility = 'hidden';
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        leaf.style.transition = `transform var(--flip-dur) var(--flip-ease)`;
+        leaf.style.transform  = 'rotateY(0deg)';
+        animateShadow(660);
+        playFlipSound(false);
+      }));
+    }
+
+    setTimeout(() => {
+      current = next;
+      leaf.style.display = 'none';
+      pageR.style.visibility = '';
+      pageL.style.visibility = '';
+      renderSpread(current);
+      flipping = false;
+    }, 660);
+  }
+
+  function goTo(idx: number) {
+    if (idx === current || flipping) return;
+    // For dot clicks, skip animation for multi-step jumps
+    if (Math.abs(idx - current) === 1) {
+      flip(idx > current ? 1 : -1);
+    } else {
+      current = idx;
+      renderSpread(current);
+    }
+  }
+
+  // Bind prev/next buttons
+  btnPrev.addEventListener('click', () => flip(-1));
+  btnNext.addEventListener('click', () => flip(1));
+
+  // Corner zone (initial — before first render swaps it)
+  cornerBtn.addEventListener('click', () => flip(1));
+
+  // Keyboard
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') flip(1);
+    if (e.key === 'ArrowLeft')  flip(-1);
+  });
+
+  // Touch/swipe
+  let touchStartX = 0;
+  book.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  book.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 40) flip(dx < 0 ? 1 : -1);
+  });
+
+  // Initial render
+  renderSpread(0);
+}
+
+document.addEventListener('astro:page-load', initBook);
+</script>

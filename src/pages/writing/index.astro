@@ -16,6 +16,21 @@ const posts = (await getCollection('writing', ({ data }) => !data.draft))
     <FilterPills active="all" />
 
     <ul class="writing-list">
+      <!-- Featured collection -->
+      <li class="writing-row writing-row--collection" data-type="poetry" style="--index: 0">
+        <a href="/writing/small-apocalypses" class="writing-link">
+          <div class="writing-link-inner">
+            <span class="writing-row-title">Small Apocalypses</span>
+            <span class="writing-row-dek">A lexicon of endings and beginnings. Seven poems.</span>
+          </div>
+          <div class="writing-row-meta">
+            <time class="mono" datetime="2024-10-01">Oct 2024</time>
+            <span class="writing-row-type mono" data-type="poetry">collection</span>
+          </div>
+        </a>
+        <div class="writing-row-rule" aria-hidden="true"></div>
+      </li>
+
       {posts.map((post, i) => {
         const formatted = post.data.date.toLocaleDateString('en-US', {
           year: 'numeric',
@@ -26,7 +41,7 @@ const posts = (await getCollection('writing', ({ data }) => !data.draft))
           <li
             class="writing-row"
             data-type={post.data.type}
-            style={`--index: ${i}`}
+            style={`--index: ${i + 1}`}
           >
             <a href={`/writing/${post.slug}`} class="writing-link">
               <div class="writing-link-inner">
