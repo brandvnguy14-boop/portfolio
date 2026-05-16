@@ -352,7 +352,7 @@ const vertexShader = /* glsl */`
     if (dragLen > 0.001) {
       // Fold line = perpendicular bisector of restCorner → corner
       vec2 mid = 0.5 * (restCorner + corner);
-      vec2 foldN = normalize(drag);          // normal to fold line
+      vec2 foldN = -normalize(drag);         // negated: d>0 selects the "being lifted" side
       vec2 foldT = vec2(-foldN.y, foldN.x); // tangent along fold line
 
       vec2 toV = position.xy - mid;
@@ -565,9 +565,13 @@ function initBook() {
   scene.add(shadowMesh);
 
   // ── Leaf mesh (conical flip geometry) ─────────────────────────────────────
-  const leafGeo = new THREE.PlaneGeometry(1.0, 1.55, 60, 40);
-  // Shift geometry so spine is at x=0, right edge at x=1
-  leafGeo.translate(0.5, 0, 0);
+  // Two geometries: forward (right page, x:0→1) and backward (left page, x:-1→0).
+  // No scale mirroring — coordinate spaces match scene space cleanly.
+  const leafGeoFwd = new THREE.PlaneGeometry(1.0, 1.55, 60, 40);
+  leafGeoFwd.translate(0.5, 0, 0);   // spine at x=0, right edge at x=1
+
+  const leafGeoBwd = new THREE.PlaneGeometry(1.0, 1.55, 60, 40);
+  leafGeoBwd.translate(-0.5, 0, 0);  // spine at x=0, left edge at x=-1
 
   const leafUniforms = {
     frontTex:  { value: textures[0].r },
@@ -582,7 +586,7 @@ function initBook() {
     side: THREE.DoubleSide,
     transparent: false,
   });
-  const leafMesh = new THREE.Mesh(leafGeo, leafMat);
+  const leafMesh = new THREE.Mesh(leafGeoFwd, leafMat);
   leafMesh.position.z = 0.002;
   leafMesh.visible = false;
   scene.add(leafMesh);
@@ -646,16 +650,18 @@ function initBook() {
     // Set leaf uniforms
     leafUniforms.flipSign.value = dir;
     if (dir === 1) {
+      leafMesh.geometry           = leafGeoFwd;  // x: 0→1  (right page)
       leafUniforms.frontTex.value = textures[current].r;
       leafUniforms.backTex.value  = textures[next].l;
       leafMesh.position.x         = 0;
       leafMesh.scale.x            = 1;
-      rightMesh.visible           = false; // leaf covers it
+      rightMesh.visible           = false;
     } else {
+      leafMesh.geometry           = leafGeoBwd;  // x: -1→0 (left page)
       leafUniforms.frontTex.value = textures[current].l;
       leafUniforms.backTex.value  = textures[next].r;
-      leafMesh.position.x         = -1;   // shift to left page
-      leafMesh.scale.x            = -1;   // mirror
+      leafMesh.position.x         = 0;
+      leafMesh.scale.x            = 1;
       leftMesh.visible            = false;
     }
     leafMesh.visible = true;
@@ -699,16 +705,15 @@ function initBook() {
       }
     }
 
-    // During snap, animate corner Y back toward -0.775 (corner returns to rest)
+    // During snap, ease corner Y back to rest (-0.775)
     const snapProgress = Math.abs(flip.cornerX - flip.targetX) / 2.0;
     const cornerY = -0.775 + (leafUniforms.cornerPos.value.y + 0.775) * snapProgress;
-    const cx = flip.dir === 1 ? flip.cornerX : -flip.cornerX;
-    leafUniforms.cornerPos.value.set(cx, Math.min(-0.2, cornerY));
+    leafUniforms.cornerPos.value.set(flip.cornerX, Math.min(-0.2, cornerY));
 
-    // Shadow strength tracks how "open" the curl is
-    const progress = Math.abs(flip.cornerX - (flip.dir === 1 ? 1.0 : -1.0)) / 2.0;
+    const restX   = flip.dir === 1 ? 1.0 : -1.0;
+    const progress = Math.abs(flip.cornerX - restX) / 2.0;
     shadowMat.uniforms.strength.value = Math.sin(progress * Math.PI) * 0.22;
-    shadowMat.uniforms.foldX.value    = (cx + 1.0) / 2.0;
+    shadowMat.uniforms.foldX.value    = (flip.cornerX + 1.0) / 2.0;
 
     // Settled?
     if (Math.abs(flip.cornerX - flip.targetX) < 0.003 && Math.abs(flip.cornerVel) < 0.01) {
@@ -818,12 +823,11 @@ function initBook() {
     const { sy } = toScene(e.clientX, e.clientY);
     const cornerY = Math.max(-0.775, Math.min(-0.2, sy)); // stay in lower half
 
-    const cx = flip.dir === 1 ? flip.cornerX : -flip.cornerX;
-    leafUniforms.cornerPos.value.set(cx, cornerY);
+    leafUniforms.cornerPos.value.set(flip.cornerX, cornerY);
 
     const progress = Math.abs(flip.cornerX - startCX) / 2.0;
     shadowMat.uniforms.strength.value = Math.sin(Math.min(progress, 1) * Math.PI) * 0.2;
-    shadowMat.uniforms.foldX.value    = (cx + 1.0) / 2.0;
+    shadowMat.uniforms.foldX.value    = (flip.cornerX + 1.0) / 2.0;
     needsRender = true;
   });
 
