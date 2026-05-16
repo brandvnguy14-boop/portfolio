@@ -611,8 +611,8 @@ function initBook() {
   // ── Spring physics ────────────────────────────────────────────────────────
   // Corner tracks from restX → targetX along x-axis.
   // restX = 1.0 (right), targetX = -1.0 (flipped left) for forward.
-  const K = 220; // stiffness
-  const Cv = 20; // damping (underdamped: critical = 2√220 ≈ 29.7)
+  const K = 280; // stiffness
+  const Cv = 26; // damping — slightly underdamped for a satisfying snap
 
   let flip = {
     active:    false,
@@ -699,9 +699,11 @@ function initBook() {
       }
     }
 
-    // Update corner uniform
+    // During snap, animate corner Y back toward -0.775 (corner returns to rest)
+    const snapProgress = Math.abs(flip.cornerX - flip.targetX) / 2.0;
+    const cornerY = -0.775 + (leafUniforms.cornerPos.value.y + 0.775) * snapProgress;
     const cx = flip.dir === 1 ? flip.cornerX : -flip.cornerX;
-    leafUniforms.cornerPos.value.set(cx, -0.775);
+    leafUniforms.cornerPos.value.set(cx, Math.min(-0.2, cornerY));
 
     // Shadow strength tracks how "open" the curl is
     const progress = Math.abs(flip.cornerX - (flip.dir === 1 ? 1.0 : -1.0)) / 2.0;
@@ -767,58 +769,73 @@ function initBook() {
   showSpread(0);
 
   // ── Pointer interaction ───────────────────────────────────────────────────
-  let pointerDown = false;
+  let pointerDown  = false;
   let pointerStartX = 0;
-  let pointerLastX  = 0;
+  let pointerStartY = 0;
 
-  function sceneX(clientX: number): number {
+  // Convert client coords → scene space (-1..1 x, -0.775..0.775 y)
+  function toScene(clientX: number, clientY: number) {
     const rect = canvas.getBoundingClientRect();
-    const nx = (clientX - rect.left) / rect.width;  // 0..1
-    return (nx * 2 - 1) * (isMobile() ? 0.5 : 1.0); // scene coords
+    const nx = (clientX - rect.left) / rect.width;
+    const ny = (clientY - rect.top)  / rect.height;
+    return {
+      sx: (nx * 2 - 1),
+      sy: (1 - ny * 2) * 0.775,
+    };
   }
 
   canvas.addEventListener('pointerdown', (e) => {
-    if (flip.active && !flip.dragging) return;
-    const sx = sceneX(e.clientX);
-    const dir: 1 | -1 = sx > 0 ? 1 : -1;
+    if (flip.active) return; // block new drag while spring is running
+    const { sx } = toScene(e.clientX, e.clientY);
+    const dir: 1 | -1 = isMobile() ? 1 : (sx >= 0 ? 1 : -1);
     const next = current + dir;
     if (next < 0 || next >= SPREADS.length) return;
 
-    pointerDown    = true;
-    pointerStartX  = e.clientX;
-    pointerLastX   = e.clientX;
     canvas.setPointerCapture(e.pointerId);
+    pointerDown   = true;
+    pointerStartX = e.clientX;
+    pointerStartY = e.clientY;
 
-    if (!flip.active) {
-      beginFlip(dir);
-    }
+    beginFlip(dir);
     flip.dragging = true;
     hint.style.opacity = '0';
-  }, { passive: true });
+  });
 
   canvas.addEventListener('pointermove', (e) => {
-    if (!pointerDown || !flip.dragging) return;
-    pointerLastX = e.clientX;
-    const dx = (e.clientX - pointerStartX) / canvas.getBoundingClientRect().width * 2;
-    flip.cornerX = Math.max(-1.2, Math.min(1.2,
-      (flip.dir === 1 ? 1.0 : -1.0) + dx * (flip.dir === 1 ? -1 : 1) * 1.4
-    ));
+    if (!pointerDown || !flip.active || !flip.dragging) return;
+
+    const rect  = canvas.getBoundingClientRect();
+    const pageW = isMobile() ? rect.width : rect.width / 2; // one page width in px
+
+    // dx: positive = rightward. For forward flip we drag left (negative dx moves corner left).
+    const dx       = (e.clientX - pointerStartX) / pageW; // normalised to one page width
+    const startCX  = flip.dir === 1 ? 1.0 : -1.0;
+    // Forward: drag left (dx<0) → cornerX decreases toward -1
+    // Backward: drag right (dx>0) → cornerX increases toward +1
+    flip.cornerX = Math.max(-1.25, Math.min(1.25, startCX + dx * (flip.dir === 1 ? 1 : 1)));
+
+    // Let corner Y loosely follow the mouse for a realistic diagonal fold
+    const { sy } = toScene(e.clientX, e.clientY);
+    const cornerY = Math.max(-0.775, Math.min(-0.2, sy)); // stay in lower half
+
     const cx = flip.dir === 1 ? flip.cornerX : -flip.cornerX;
-    leafUniforms.cornerPos.value.set(cx, -0.775);
-    const progress = Math.abs(flip.cornerX - (flip.dir === 1 ? 1.0 : -1.0)) / 2.0;
-    shadowMat.uniforms.strength.value = Math.sin(Math.min(progress, 1) * Math.PI) * 0.18;
-    shadowMat.uniforms.foldX.value    = (cx + 1) / 2.0;
+    leafUniforms.cornerPos.value.set(cx, cornerY);
+
+    const progress = Math.abs(flip.cornerX - startCX) / 2.0;
+    shadowMat.uniforms.strength.value = Math.sin(Math.min(progress, 1) * Math.PI) * 0.2;
+    shadowMat.uniforms.foldX.value    = (cx + 1.0) / 2.0;
     needsRender = true;
-  }, { passive: true });
+  });
 
   canvas.addEventListener('pointerup', (e) => {
     if (!pointerDown) return;
     pointerDown   = false;
     flip.dragging = false;
-    // Snap forward if dragged past 35% of page width
-    const totalDx = e.clientX - pointerStartX;
-    const threshold = canvas.getBoundingClientRect().width * 0.18;
-    const shouldCommit = Math.abs(totalDx) > threshold;
+    const totalDx    = e.clientX - pointerStartX;
+    const rect       = canvas.getBoundingClientRect();
+    const pageW      = isMobile() ? rect.width : rect.width / 2;
+    // Commit if dragged more than 25% of a page width in the correct direction
+    const shouldCommit = (flip.dir === 1 ? -totalDx : totalDx) > pageW * 0.25;
     snapTo(shouldCommit);
   });
 
