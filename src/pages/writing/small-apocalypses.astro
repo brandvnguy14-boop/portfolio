@@ -615,8 +615,8 @@ function initBook() {
   // ── Spring physics ────────────────────────────────────────────────────────
   // Corner tracks from restX → targetX along x-axis.
   // restX = 1.0 (right), targetX = -1.0 (flipped left) for forward.
-  const K = 280; // stiffness
-  const Cv = 26; // damping — slightly underdamped for a satisfying snap
+  const K  = 140; // stiffness  — softer so the snap feels weighted
+  const Cv = 32;  // damping    — overdamped (critical ≈ 2√140 ≈ 23.7), no bounce
 
   let flip = {
     active:    false,
@@ -789,20 +789,47 @@ function initBook() {
     };
   }
 
+  // Corner hotspot: bottom-outer ~30% of each page.
+  // Returns the flip direction if the pointer is in a draggable corner, else null.
+  function cornerDir(clientX: number, clientY: number): 1 | -1 | null {
+    const { sx, sy } = toScene(clientX, clientY);
+    const mobile = isMobile();
+    // Bottom portion of the page only
+    if (sy > -0.22) return null;
+    if (mobile) {
+      // Single-page: only right corner (always forward)
+      return sx > 0.35 ? 1 : null;
+    }
+    // Two-page: right corner → forward, left corner → backward
+    if (sx >  0.52) return 1;
+    if (sx < -0.52) return -1;
+    return null;
+  }
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (pointerDown || flip.active) return;
+    const dir = cornerDir(e.clientX, e.clientY);
+    // Show a grab cursor over draggable corners only
+    if (dir === 1 && current < SPREADS.length - 1)      canvas.style.cursor = 'grab';
+    else if (dir === -1 && current > 0)                  canvas.style.cursor = 'grab';
+    else                                                  canvas.style.cursor = 'default';
+  });
+
   canvas.addEventListener('pointerdown', (e) => {
-    if (flip.active) return; // block new drag while spring is running
-    const { sx } = toScene(e.clientX, e.clientY);
-    const dir: 1 | -1 = isMobile() ? 1 : (sx >= 0 ? 1 : -1);
+    if (flip.active) return;
+    const dir = cornerDir(e.clientX, e.clientY);
+    if (!dir) return;
     const next = current + dir;
     if (next < 0 || next >= SPREADS.length) return;
 
     canvas.setPointerCapture(e.pointerId);
+    canvas.style.cursor = 'grabbing';
     pointerDown   = true;
     pointerStartX = e.clientX;
     pointerStartY = e.clientY;
 
     beginFlip(dir);
-    flip.dragging = true;
+    flip.dragging  = true;
     hint.style.opacity = '0';
   });
 
@@ -810,18 +837,17 @@ function initBook() {
     if (!pointerDown || !flip.active || !flip.dragging) return;
 
     const rect  = canvas.getBoundingClientRect();
-    const pageW = isMobile() ? rect.width : rect.width / 2; // one page width in px
+    const pageW = isMobile() ? rect.width : rect.width / 2;
 
-    // dx: positive = rightward. For forward flip we drag left (negative dx moves corner left).
-    const dx       = (e.clientX - pointerStartX) / pageW; // normalised to one page width
-    const startCX  = flip.dir === 1 ? 1.0 : -1.0;
-    // Forward: drag left (dx<0) → cornerX decreases toward -1
-    // Backward: drag right (dx>0) → cornerX increases toward +1
-    flip.cornerX = Math.max(-1.25, Math.min(1.25, startCX + dx * (flip.dir === 1 ? 1 : 1)));
+    const dx      = (e.clientX - pointerStartX) / pageW;
+    const startCX = flip.dir === 1 ? 1.0 : -1.0;
 
-    // Let corner Y loosely follow the mouse for a realistic diagonal fold
+    // Clamp strictly to [−1, 1] so page can't fold outward past the spine
+    flip.cornerX = Math.max(-1.0, Math.min(1.0, startCX + dx));
+
+    // Corner Y tracks the mouse — keeps the fold diagonal and realistic
     const { sy } = toScene(e.clientX, e.clientY);
-    const cornerY = Math.max(-0.775, Math.min(-0.2, sy)); // stay in lower half
+    const cornerY = Math.max(-0.775, Math.min(-0.15, sy));
 
     leafUniforms.cornerPos.value.set(flip.cornerX, cornerY);
 
@@ -833,14 +859,19 @@ function initBook() {
 
   canvas.addEventListener('pointerup', (e) => {
     if (!pointerDown) return;
-    pointerDown   = false;
+    pointerDown  = false;
     flip.dragging = false;
-    const totalDx    = e.clientX - pointerStartX;
-    const rect       = canvas.getBoundingClientRect();
-    const pageW      = isMobile() ? rect.width : rect.width / 2;
-    // Commit if dragged more than 25% of a page width in the correct direction
-    const shouldCommit = (flip.dir === 1 ? -totalDx : totalDx) > pageW * 0.25;
-    snapTo(shouldCommit);
+    canvas.style.cursor = 'default';
+
+    const rect  = canvas.getBoundingClientRect();
+    const pageW = isMobile() ? rect.width : rect.width / 2;
+    const totalDx = e.clientX - pointerStartX;
+
+    // Commit if: dragged past 30% of page width in correct direction,
+    // OR released with enough velocity toward the destination.
+    const draggedFar  = (flip.dir === 1 ? -totalDx : totalDx) > pageW * 0.30;
+    const fastRelease = (flip.dir === 1 ? -flip.cornerVel : flip.cornerVel) > 0.8;
+    snapTo(draggedFar || fastRelease);
   });
 
   // ── Keyboard ──────────────────────────────────────────────────────────────
