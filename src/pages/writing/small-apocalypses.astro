@@ -1,15 +1,37 @@
 ---
 import Base from '@/layouts/Base.astro';
+import { BOOK } from '@/data/small-apocalypses';
 ---
 
 <Base title="Small Apocalypses — Brandon Nguyen" description="A lexicon of endings and beginnings. Seven poems.">
   <div class="room" id="room">
     <a href="/writing" class="room-back mono">← Writing</a>
     <div class="book-wrap" id="book-wrap">
-      <canvas id="book-canvas" aria-label="Small Apocalypses — a poetry collection by Brandon Nguyen"></canvas>
-      <div class="dots-row" role="tablist" aria-label="Navigate spreads" id="dots-row"></div>
-      <p class="flip-hint mono" id="flip-hint">drag corner · ← → to navigate</p>
+      <div class="book-stage" id="book-stage">
+        <canvas id="book-canvas" aria-hidden="true"></canvas>
+      </div>
+      <div class="book-controls">
+        <nav class="dots-row" aria-label="Pages" id="dots-row"></nav>
+        <p class="flip-hint mono" id="flip-hint">click or drag a page · ← → keys</p>
+      </div>
     </div>
+
+    <!-- The book is drawn on a canvas; this is the same text for screen readers and no-JS -->
+    <article class="sr-only">
+      <h1>{BOOK.title}</h1>
+      <p>{BOOK.subtitle}</p>
+      <section>
+        <h2>Preface</h2>
+        {BOOK.preface.map((para) => <p>{para}</p>)}
+      </section>
+      {BOOK.poems.map((poem) => (
+        <section>
+          <h2>{poem.n}. {poem.title}</h2>
+          <p>{poem.etym}</p>
+          {poem.stanzas.map((stanza) => <p style="white-space: pre-line">{stanza}</p>)}
+        </section>
+      ))}
+    </article>
   </div>
 </Base>
 
@@ -20,29 +42,39 @@ import Base from '@/layouts/Base.astro';
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem clamp(1rem, 4vw, 3rem) 2.5rem;
+  padding: 1rem 0 1.25rem;
   background: var(--color-bg);
   position: relative;
+  overflow-x: clip;
 }
 
 .room-back {
-  position: absolute;
-  top: 1.25rem;
-  left: clamp(1rem, 4vw, 3rem);
+  align-self: flex-start;
+  margin: 0 0 0.75rem 1rem;
   font-size: 0.7rem;
   letter-spacing: 0.06em;
   color: var(--color-text-muted);
   text-decoration: none;
   transition: color var(--dur-fast) var(--ease-smooth);
+  position: relative;
   z-index: 10;
 }
 .room-back:hover { color: var(--color-accent); }
+
+@media (min-width: 820px) {
+  .room-back {
+    position: absolute;
+    top: 1.25rem;
+    left: clamp(1rem, 4vw, 3rem);
+    margin: 0;
+  }
+}
 
 .book-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.25rem;
+  gap: 0.9rem;
   animation: book-rise 0.6s var(--ease-enter) both;
   animation-delay: 0.08s;
 }
@@ -52,28 +84,55 @@ import Base from '@/layouts/Base.astro';
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* The stage is the size of the open book; the canvas overhangs it so a
+   lifted page and the book's shadow have room to draw. */
+.book-stage {
+  position: relative;
+}
+
 #book-canvas {
+  position: absolute;
   display: block;
-  touch-action: none;
+  touch-action: pan-y;
   cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.book-controls {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .dots-row {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.15rem;
   align-items: center;
 }
 .dot {
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.dot::before {
+  content: '';
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--color-border-strong);
-  border: none;
-  padding: 0;
-  cursor: pointer;
   transition: all var(--dur-fast) var(--ease-smooth);
 }
-.dot[aria-selected='true'] {
+.dot[aria-current='true']::before {
   background: var(--color-accent);
   transform: scale(1.35);
 }
@@ -90,377 +149,457 @@ import Base from '@/layouts/Base.astro';
 
 <script>
 import * as THREE from 'three';
+import { BOOK } from '@/data/small-apocalypses';
 
-// ── Poems data ───────────────────────────────────────────────────────────────
-const C = {
-  title: 'Small Apocalypses',
-  subtitle: 'a lexicon of endings and beginnings',
-  count: 'seven poems',
-  preface: [
-    'I have been preoccupied, for as long as I can remember, with what happens after something ceases to be. Not the cinematic kind, but the smaller afterlives that arrive without spectacle: the hum a room retains after the music stops, the way a voice keeps almost-arriving in the days after a funeral, the half-second of smoke after a candle is blown out, and the present tips, irretrievably, into the past.',
-    'This collection is an attempt to build a small lexicon for those afterlives. Each poem takes a single word and tries to press it open. Language is our most beautiful failure. It cannot hold the dead. It cannot return the porch, the name no one calls anymore, the cowbell in the soldier\'s dream.',
-    'But the dictionary is also a garden: every entry, a small refusal of forgetting. I wrote these poems in that double light—the world ending, the world beginning, and a word, somewhere in the middle, doing what it can.',
-  ],
-  poems: [
-    { n:'I',   title:'Apocalypse', etym:'Greek apokalypsis: an uncovering, an unveiling',
-      stanzas:['The world doesn\'t end all at once.\n\nIt ends in moments. The 2 a.m. silence\nthat feels less like quiet and more\nlike something listening back.\nThe sunset that holds on too long,\nas if the day knows what I do not.','I was eight the first time I believed.\nA live stream. An asteroid. The chicken\nsandwich on my plate became a stone.\nI asked my cousin, after church,\nif the world would end soon.\nNot for a million years, he said,\nif ever.','To a child, a million years\nis a synonym for tomorrow.','The Greek does not mean\ndestruction.\nIt means:\nto lift the veil.\nTo see, for one bright second,\nthe shape of a thing as it actually is.','Maybe this is why I cannot stop watching.\nMaybe the end is not what I fear\nbut what I have been waiting for—\nthe moment the curtain lifts\nand I finally understand\nwhich world I have been living in.'] },
-    { n:'II',  title:'Entropy', etym:'the tendency of all closed systems toward disorder',
-      stanzas:['A physicist told me once\nthat the universe is forgetting itself.\nSlowly. Evenly. With great patience.','Diseases, she said, are only molecules\nmisbehaving. The body is a borrowed\narrangement. Death, the cessation\nof a chemistry that was never ours\nto keep.','And yet.','My grandfather\'s voice was a chemistry.\nThe way he said my name on the porch\nwas a chemistry. The chicken sandwich,\nthe live stream, the cousin in his suit\nafter church—all of it, chemistry.','The second law says the heat will spread.\nThe cup of coffee on the desk\nwill cool to match the room.\nThe room will cool to match the house.\nThe house will cool to match the world.\nThe world will cool to match the dark.','This is the apocalypse no one televises.\nIt is happening now. It is happening\nin your hands, on this page,\nas the warmth of your fingers\nbleeds into the paper\nand the paper bleeds into the air\nand the air forgets, as it must,\nthat you were ever here.'] },
-    { n:'III', title:'Nostalgia', etym:'Greek nostos (homecoming) + algos (pain)',
-      stanzas:['Once, it was a diagnosis.\nSwiss mercenaries, in the lowlands\nof seventeenth-century France,\ndied of it. A fatal homesickness.\nDoctors prescribed leeches, opium,\na journey to higher ground.\nSome men were simply sent home\nto be cured or buried.','I think the word still kills.\nJust slower. Just quieter.','Last week I tried to remember\nthe sound of my grandfather\'s voice\nand could not. The word\ngrandfather\nwas a closed door. The word\nvoice\nwas a closed door. I had the keys\nand none of them fit.','There is no language for this:\nthe homesickness for a person\nwho is the home.','Somewhere in the word, a soldier\nis still dying of his fever,\ndreaming of the cowbells,\nthe angle of light through a window\nhis mother stood beside, once,\na long time ago,\ncalling him in for supper\nin a voice he can no longer hear.'] },
-    { n:'IV',  title:'Apostasy', etym:'Greek apostasia: a standing-off',
-      stanzas:['Not a slamming of the door.\nNot a renunciation, screamed.\nJust the small geometry\nof taking a step back—','the body, in its mute wisdom,\nunderstanding before the mind.','I asked my mother, when I was small,\nif the world would end.\nIf it happens, it happens,\nshe said. If we die, we die.','Mothers are supposed to lie\nabout these things. Aren\'t they?','In the pew, I watched my cousin\nmouth the words he no longer believed,\nand I understood, before I had the word,\nthat this is what most faith looks like:\nnot a leaving, but a standing-off,\na slow gradient of distance\nmeasured in unanswered prayers.','The Greek does not mean\nbetrayal.\nIt means: I was here, and now\nI am standing slightly farther away.\nIt means the cathedral is still beautiful\nfrom the field across the road.','The world did not end that night.\nIt kept spinning, and so did I,\nthough something in me had stepped back\nand refused, ever after, to come closer.'] },
-    { n:'V',   title:'Palimpsest', etym:'a manuscript scraped clean and written over',
-      stanzas:['In the medieval scriptoria,\nwhen parchment grew scarce,\nthe monks would scrape the old text\nfrom the page and write a new one\non top of it.','Sometimes, centuries later,\nunder ultraviolet light,\nthe older words rise up\nthrough the newer ones—','a Greek treatise\non the workings of the body,\nburied beneath\na book of psalms.','This is what I am, I think.\nThis is what we all are.','Cells in the body, I have read,\ndie and renew constantly.\nI am a walking palimpsest,\nrewritten with each heartbeat,\nthe old text faintly visible\nbeneath the new.','We cease to be and regenerate\na thousand times a day.\nHold the page to the light.\nYou will see them all.'] },
-    { n:'VI',  title:'Genesis', etym:'Greek genesis: origin, the act of becoming',
-      stanzas:['For every apocalypse, a beginning.\nThis is the part I keep forgetting.','The soil, stripped bare by greed,\nbegins to heal under patient hands.\nUrban gardens sprout from the skeletons\nof abandoned factories. The vine\nfinds the crack in the concrete\nand calls it home.','In the show I used to watch,\na brother\'s world ended\nthe night his sister was born.\nShe had to be hidden. The law\npermitted only one child.\nAnd so, in the moment of her arrival,\nthe life he had known dissolved—','his freedom, his quiet, his future.\nAll of it, gone. Replaced\nby the small, breathing weight\nof a person he would have to protect\nwith everything he was.','This is what I want to say:\nevery birth is a kind of ending.\nEvery ending, a birth in disguise.','The Greek root gen gives us generation,\ngenesis, generous, kin. It also gives us\ngene—the small, stubborn instruction\nthe body passes on, even in dying.','Even the molecules misbehaving\nare, in their way, still teaching\nthe next molecules what to do.'] },
-    { n:'VII', title:'Present', etym:'Latin praesens: being at hand, standing before',
-      stanzas:['The Polaroid develops in the palm.\nThe chemicals do their slow, bright work.\nAnd the moment it finishes,\nthe present is already the past.','There is no escape from the present.\nThis is the trick the word performs:\nit cannot be kept, only inhabited.\nIt cannot be saved, only spent.','I have spent so much of mine\nbracing. The asteroid. The wave.\nThe bright flash on the horizon.\nThe doomscroll at 2 a.m.,\ninoculating myself against a future\nI cannot, in any case, prevent.','And the small ones, too—\nthe histories erased,\nthe cultures dissolved into white noise,\nthe TikTok I forgot two scrolls ago,\nthe last note of a song\nI will never hear again,\nthe moment I forgot\nthe sound of my grandfather\'s voice.','Tiny deaths. Accumulating\nlike dust on forgotten bookshelves.','But here is the thing about dust:\nit is mostly the body. Mostly skin.\nMostly the small, particulate proof\nthat someone was here, and breathing,\nand is here, still, in this room,\non this page, in this present\nthat will not stop becoming the past.','Listen. Can you hear it?\n\nThe world is always ending.\nAnd it is always just about to begin.'] },
-  ],
-};
+// ── Book structure ───────────────────────────────────────────────────────────
+// A book is a stack of leaves; each leaf has a front (right-hand) and a back
+// (left-hand) page. `turned` leaves lie on the left, the rest on the right.
+type Spec = { t: 'cover' | 'back' | 'endpaper' | 'blank' | 'title' | 'preface' | 'poem' | 'finis'; i?: number };
+type Leaf = { front: Spec; back: Spec };
 
-const SPREADS = [
-  { l:{ t:'blank' },      r:{ t:'cover' } },
-  { l:{ t:'preface' },    r:{ t:'poem', i:0 } },
-  { l:{ t:'poem', i:1 },  r:{ t:'poem', i:2 } },
-  { l:{ t:'poem', i:3 },  r:{ t:'poem', i:4 } },
-  { l:{ t:'poem', i:5 },  r:{ t:'poem', i:6 } },
-  { l:{ t:'end' },        r:{ t:'blank' } },
+const CONTENT: Spec[] = [
+  { t: 'title' },
+  { t: 'preface' },
+  ...BOOK.poems.map((_, i): Spec => ({ t: 'poem', i })),
+  { t: 'finis' },
 ];
 
-// ── Canvas-2D texture renderer ──────────────────────────────────────────────
-const TEX_W = 512;
-const TEX_H = Math.round(TEX_W * 1.55); // 793
+function buildLeaves(single: boolean): Leaf[] {
+  // Narrow screens show one page at a time, so every page gets its own leaf.
+  if (single) {
+    return [{ t: 'cover' } as Spec, ...CONTENT].map((front) => ({ front, back: { t: 'blank' } }));
+  }
+  const pages: Spec[] = [{ t: 'cover' }, { t: 'endpaper' }, ...CONTENT];
+  // The back endpaper and cover share a leaf, so everything before them must pair up
+  if (pages.length % 2 === 1) pages.push({ t: 'blank' });
+  pages.push({ t: 'endpaper' }, { t: 'back' });
+  const leaves: Leaf[] = [];
+  for (let i = 0; i < pages.length; i += 2) leaves.push({ front: pages[i], back: pages[i + 1] });
+  return leaves;
+}
 
-// Wrap text, return final Y
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string, x: number, y: number, maxW: number, lh: number
-): number {
-  const words = text.split(' ');
+const specKey = (s: Spec) => `${s.t}:${s.i ?? ''}`;
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const smooth = (a: number, b: number, v: number) => {
+  const x = clamp((v - a) / (b - a), 0, 1);
+  return x * x * (3 - 2 * x);
+};
+
+// ── Page typesetting (Canvas 2D → texture) ───────────────────────────────────
+const INK = '#1d1a14';
+const MUTED = '#8a7c68';
+const ACCENT = '#b9712a';
+const PAPER = '#f6f0e4';
+const COVER = '#17140f';
+const ENDPAPER = '#b98552';
+const SERIF = `'Fraunces Variable', Georgia, serif`;
+const MONO = `'JetBrains Mono', 'Courier New', monospace`;
+
+const LINE = 1.34;        // poem line height, in ems
+const STANZA_GAP = 0.55;  // stanza break, in lines
+
+type Ctx = CanvasRenderingContext2D;
+const spacing = (ctx: Ctx, v: string) => { (ctx as any).letterSpacing = v; };
+
+function pageMetrics(W: number, H: number) {
+  const mx = Math.round(clamp(W * 0.105, 26, 58));
+  return {
+    mx,
+    cw: W - mx * 2,
+    top: Math.round(H * 0.06),
+    bottom: Math.round(H * 0.915),
+    folioY: Math.round(H * 0.958),
+    title: clamp(W * 0.062, 22, 30),
+    small: clamp(W * 0.022, 9, 10.5),
+    etym: clamp(W * 0.027, 10.5, 13),
+  };
+}
+
+function wrapLines(ctx: Ctx, text: string, maxW: number): string[] {
+  const out: string[] = [];
   let line = '';
-  for (const word of words) {
+  for (const word of text.split(' ')) {
     const test = line ? line + ' ' + word : word;
-    if (ctx.measureText(test).width > maxW && line) {
-      ctx.fillText(line, x, y);
-      y += lh;
+    if (line && ctx.measureText(test).width > maxW) {
+      out.push(line);
       line = word;
     } else {
       line = test;
     }
   }
-  if (line) { ctx.fillText(line, x, y); y += lh; }
-  return y;
+  if (line) out.push(line);
+  return out;
 }
 
-function drawPageToCanvas(
-  ctx: CanvasRenderingContext2D,
-  spec: { t: string; i?: number },
-  side: 'l' | 'r',
-  spreadIdx: number
-): void {
-  const W = TEX_W, H = TEX_H;
-  const PAD = Math.round(W * 0.11);
-  const SERIF = `'Fraunces Variable', 'Georgia', serif`;
-  const MONO  = `'JetBrains Mono', 'Courier New', monospace`;
+type Poem = (typeof BOOK.poems)[number];
 
-  // Background
-  ctx.fillStyle = spec.t === 'cover' ? '#141210'
-                : spec.t === 'blank' ? '#ede6d8'
-                : '#f5efe3';
+// Where a poem's body starts, after its title and etymology
+function poemHeader(ctx: Ctx, p: Poem, W: number, H: number) {
+  const m = pageMetrics(W, H);
+  ctx.font = `italic 400 ${m.etym}px ${SERIF}`;
+  spacing(ctx, '0px');
+  const etymLines = wrapLines(ctx, p.etym, m.cw);
+  const titleY = m.top + m.title * 0.85;
+  const etymY = titleY + m.etym * 1.9;
+  const bodyTop = etymY + (etymLines.length - 1) * m.etym * 1.4 + m.etym * 1.7;
+  return { m, etymLines, titleY, etymY, bodyTop };
+}
+
+// One body size for the whole book: the largest at which every poem fits its page
+// with no wrapped lines.
+function fitPoemSize(ctx: Ctx, W: number, H: number): number {
+  let size = 15.5;
+  for (const p of BOOK.poems) {
+    const { m, bodyTop } = poemHeader(ctx, p, W, H);
+    let lines = 0;
+    let gaps = p.stanzas.length - 1;
+    let widest = 0;
+    ctx.font = `400 100px ${SERIF}`;
+    spacing(ctx, '0px');
+    for (const stanza of p.stanzas) {
+      for (const line of stanza.split('\n')) {
+        if (line === '') { gaps++; continue; }
+        lines++;
+        widest = Math.max(widest, ctx.measureText(line).width);
+      }
+    }
+    const byHeight = (m.bottom - bodyTop) / (LINE * (lines + STANZA_GAP * gaps));
+    const byWidth = (m.cw * 100) / widest;
+    size = Math.min(size, byHeight, byWidth);
+  }
+  return Math.floor(size * 10) / 10;
+}
+
+function drawFolio(ctx: Ctx, n: number, side: 'l' | 'r', W: number, H: number) {
+  const m = pageMetrics(W, H);
+  ctx.font = `400 ${m.small}px ${MONO}`;
+  ctx.fillStyle = MUTED;
+  spacing(ctx, '0.04em');
+  ctx.textAlign = side === 'l' ? 'left' : 'right';
+  ctx.fillText(String(n), side === 'l' ? m.mx : W - m.mx, m.folioY);
+  ctx.textAlign = 'left';
+}
+
+function drawPage(ctx: Ctx, spec: Spec, side: 'l' | 'r', W: number, H: number, poemSize: number) {
+  const m = pageMetrics(W, H);
+  const dark = spec.t === 'cover' || spec.t === 'back';
+
+  ctx.fillStyle = dark ? COVER : spec.t === 'endpaper' ? ENDPAPER : PAPER;
   ctx.fillRect(0, 0, W, H);
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
 
-  // Ambient gradient (top light)
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, 'rgba(255,255,255,0.07)');
-  grad.addColorStop(0.5, 'rgba(0,0,0,0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  if (spec.t === 'blank') return;
+  if (!dark) {
+    // Hairline so cream paper holds its edge against a cream background
+    ctx.strokeStyle = 'rgba(70, 50, 25, 0.13)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
+  }
 
   if (spec.t === 'cover') {
-    let y = Math.round(H * 0.14);
-    // Rule
-    ctx.fillStyle = '#c47a2e';
-    ctx.fillRect(PAD, y, Math.round(W * 0.12), 1);
-    y += Math.round(W * 0.07);
-    // Title (two lines)
+    let y = Math.round(H * 0.15);
+    ctx.fillStyle = ACCENT;
+    ctx.fillRect(m.mx, y, Math.round(W * 0.12), 1);
+    // Title, sized so the longer word fills the measure
+    ctx.font = `400 100px ${SERIF}`;
+    spacing(ctx, '-0.02em');
+    const size = Math.min(W * 0.16, (m.cw * 100) / ctx.measureText('Apocalypses').width);
+    ctx.font = `400 ${size}px ${SERIF}`;
     ctx.fillStyle = '#f0e8d8';
-    ctx.font = `400 ${Math.round(W * 0.155)}px ${SERIF}`;
-    ctx.fillText('Small', PAD, y);
-    y += Math.round(W * 0.165);
-    ctx.fillText('Apocalypses', PAD, y);
-    y += Math.round(W * 0.1);
-    // Subtitle
-    ctx.font = `${Math.round(W * 0.048)}px ${MONO}`;
-    ctx.fillStyle = '#c47a2e';
-    ctx.letterSpacing = '0.05em';
-    wrapText(ctx, C.subtitle, PAD, y, W - PAD * 2, Math.round(W * 0.065));
-    y += Math.round(W * 0.14);
+    y += size * 1.25;
+    ctx.fillText('Small', m.mx, y);
+    y += size * 1.05;
+    ctx.fillText('Apocalypses', m.mx, y);
+    y += size * 0.75;
+    ctx.font = `400 ${m.small * 1.1}px ${MONO}`;
+    ctx.fillStyle = '#c98a45';
+    spacing(ctx, '0.05em');
+    for (const line of wrapLines(ctx, BOOK.subtitle, m.cw)) {
+      ctx.fillText(line, m.mx, y);
+      y += m.small * 1.8;
+    }
     ctx.fillStyle = '#786858';
-    ctx.font = `${Math.round(W * 0.042)}px ${MONO}`;
-    ctx.fillText(C.count, PAD, y);
-    // Author (bottom)
-    ctx.fillText('Brandon Nguyen', PAD, H - PAD);
+    ctx.font = `400 ${m.small}px ${MONO}`;
+    ctx.fillText(BOOK.count, m.mx, y + m.small * 0.6);
+    ctx.fillText('Brandon Nguyen', m.mx, H - m.mx);
+    return;
+  }
+
+  if (spec.t === 'back') {
+    ctx.fillStyle = ACCENT;
+    ctx.fillRect(W / 2 - Math.round(W * 0.06), Math.round(H * 0.5), Math.round(W * 0.12), 1);
+    return;
+  }
+
+  if (spec.t === 'title') {
+    const cx = W / 2;
+    ctx.textAlign = 'center';
+    ctx.font = `400 ${clamp(W * 0.085, 26, 44)}px ${SERIF}`;
+    spacing(ctx, '-0.02em');
+    ctx.fillStyle = INK;
+    const y = Math.round(H * 0.36);
+    ctx.fillText(BOOK.title, cx, y);
+    ctx.font = `italic 400 ${m.etym * 1.1}px ${SERIF}`;
+    spacing(ctx, '0px');
+    ctx.fillStyle = MUTED;
+    ctx.fillText(BOOK.subtitle, cx, y + m.etym * 2.6);
+    ctx.fillStyle = ACCENT;
+    ctx.fillRect(cx - Math.round(W * 0.04), y + m.etym * 4.6, Math.round(W * 0.08), 1);
+    ctx.font = `400 ${m.small}px ${MONO}`;
+    spacing(ctx, '0.12em');
+    ctx.fillStyle = MUTED;
+    ctx.fillText('BRANDON NGUYEN', cx, m.bottom);
+    ctx.textAlign = 'left';
     return;
   }
 
   if (spec.t === 'preface') {
-    let y = Math.round(H * 0.1);
-    ctx.font = `${Math.round(W * 0.042)}px ${MONO}`;
-    ctx.fillStyle = '#8a7c68';
-    ctx.letterSpacing = '0.08em';
-    ctx.fillText('PREFACE', PAD, y);
-    y += Math.round(W * 0.09);
-    ctx.letterSpacing = '0';
-    ctx.fillStyle = '#1c1810';
-    const lh = Math.round(W * 0.074);
-    ctx.font = `italic ${Math.round(W * 0.052)}px ${SERIF}`;
-    for (const para of C.preface) {
-      y = wrapText(ctx, para, PAD, y, W - PAD * 2, lh);
-      y += Math.round(W * 0.04);
-      if (y > H * 0.88) break;
+    ctx.font = `400 ${m.small}px ${MONO}`;
+    ctx.fillStyle = MUTED;
+    spacing(ctx, '0.14em');
+    const labelY = m.top + m.title * 0.85;
+    ctx.fillText('PREFACE', m.mx, labelY);
+    spacing(ctx, '0px');
+    const top = labelY + m.etym * 2.4;
+    // Largest size at which the three paragraphs fit
+    let size = Math.min(15, poemSize + 1.5);
+    let paras: string[][] = [];
+    for (; size > 7; size -= 0.25) {
+      ctx.font = `400 ${size}px ${SERIF}`;
+      paras = BOOK.preface.map((para) => wrapLines(ctx, para, m.cw));
+      const lines = paras.reduce((n, p) => n + p.length, 0);
+      if (top + size * 1.55 * lines + size * 0.85 * (paras.length - 1) <= m.bottom) break;
     }
-    // Page number
-    ctx.font = `${Math.round(W * 0.038)}px ${MONO}`;
-    ctx.fillStyle = '#8a7c68';
-    ctx.letterSpacing = '0.04em';
-    const pn = spreadIdx * 2;
-    if (pn > 0) ctx.fillText(String(pn), PAD, H - Math.round(W * 0.055));
+    ctx.fillStyle = INK;
+    let y = top + size;
+    for (const para of paras) {
+      for (const line of para) {
+        ctx.fillText(line, m.mx, y);
+        y += size * 1.55;
+      }
+      y += size * 0.85;
+    }
+    drawFolio(ctx, CONTENT.findIndex((s) => s.t === 'preface') + 1, side, W, H);
     return;
   }
 
   if (spec.t === 'poem') {
-    const p = C.poems[spec.i!];
-    let y = Math.round(H * 0.09);
-    // Number
-    ctx.font = `${Math.round(W * 0.038)}px ${MONO}`;
-    ctx.fillStyle = '#c47a2e';
-    ctx.letterSpacing = '0.1em';
-    ctx.fillText(p.n, PAD, y);
-    y += Math.round(W * 0.065);
-    // Title
-    ctx.letterSpacing = '-0.01em';
-    ctx.font = `400 ${Math.round(W * 0.115)}px ${SERIF}`;
-    ctx.fillStyle = '#1c1810';
-    ctx.fillText(p.title, PAD, y);
-    y += Math.round(W * 0.115);
+    const p = BOOK.poems[spec.i!];
+    const { etymLines, titleY, etymY, bodyTop } = poemHeader(ctx, p, W, H);
+    // Title, with its numeral set against the outer margin
+    ctx.font = `400 ${m.title}px ${SERIF}`;
+    spacing(ctx, '-0.02em');
+    ctx.fillStyle = INK;
+    ctx.fillText(p.title, m.mx, titleY);
+    ctx.font = `400 ${m.small}px ${MONO}`;
+    spacing(ctx, '0.14em');
+    ctx.fillStyle = ACCENT;
+    ctx.textAlign = 'right';
+    ctx.fillText(p.n, W - m.mx, titleY);
+    ctx.textAlign = 'left';
     // Etymology
-    ctx.letterSpacing = '0';
-    ctx.font = `italic ${Math.round(W * 0.042)}px ${SERIF}`;
-    ctx.fillStyle = '#8a7c68';
-    y = wrapText(ctx, p.etym, PAD, y, W - PAD * 2, Math.round(W * 0.054));
-    y += Math.round(W * 0.04);
-    // Rule
-    ctx.fillStyle = '#c47a2e';
-    ctx.fillRect(PAD, y - Math.round(W * 0.015), Math.round(W * 0.09), 1);
-    y += Math.round(W * 0.045);
-    // Stanzas
-    ctx.fillStyle = '#1c1810';
-    ctx.font = `${Math.round(W * 0.05)}px ${SERIF}`;
-    const lh2 = Math.round(W * 0.068);
+    ctx.font = `italic 400 ${m.etym}px ${SERIF}`;
+    spacing(ctx, '0px');
+    ctx.fillStyle = MUTED;
+    etymLines.forEach((line, k) => ctx.fillText(line, m.mx, etymY + k * m.etym * 1.4));
+    // Body
+    ctx.font = `400 ${poemSize}px ${SERIF}`;
+    ctx.fillStyle = INK;
+    const lh = poemSize * LINE;
+    let y = bodyTop + poemSize;
     for (const stanza of p.stanzas) {
       for (const line of stanza.split('\n')) {
-        if (line === '') { y += Math.round(W * 0.025); continue; }
-        y = wrapText(ctx, line, PAD, y, W - PAD * 2, lh2);
+        if (line === '') { y += lh * STANZA_GAP; continue; }
+        ctx.fillText(line, m.mx, y);
+        y += lh;
       }
-      y += Math.round(W * 0.04);
-      if (y > H * 0.9) break;
+      y += lh * STANZA_GAP;
     }
-    // Scroll fade at bottom (for overflowing content)
-    const fadeGrad = ctx.createLinearGradient(0, H * 0.8, 0, H * 0.95);
-    fadeGrad.addColorStop(0, 'rgba(245,239,227,0)');
-    fadeGrad.addColorStop(1, 'rgba(245,239,227,1)');
-    ctx.fillStyle = fadeGrad;
-    ctx.fillRect(0, H * 0.8, W, H * 0.15);
-    // Page number
-    const pn = spreadIdx * 2 + (side === 'l' ? 0 : 1);
-    if (pn > 0 && pn < SPREADS.length * 2 - 1) {
-      ctx.font = `${Math.round(W * 0.038)}px ${MONO}`;
-      ctx.fillStyle = '#8a7c68';
-      ctx.letterSpacing = '0.04em';
-      if (side === 'l') {
-        ctx.fillText(String(pn), PAD, H - Math.round(W * 0.055));
-      } else {
-        ctx.textAlign = 'right';
-        ctx.fillText(String(pn), W - PAD, H - Math.round(W * 0.055));
-        ctx.textAlign = 'left';
-      }
-    }
+    drawFolio(ctx, CONTENT.findIndex((s) => s.t === 'poem' && s.i === spec.i) + 1, side, W, H);
     return;
   }
 
-  if (spec.t === 'end') {
+  if (spec.t === 'finis') {
     const cx = W / 2;
     const cy = H / 2;
-    ctx.fillStyle = '#8a7c68';
-    ctx.fillRect(cx - Math.round(W * 0.06), cy - Math.round(W * 0.07), Math.round(W * 0.12), 1);
-    ctx.font = `${Math.round(W * 0.042)}px ${MONO}`;
-    ctx.fillStyle = '#8a7c68';
-    ctx.letterSpacing = '0.12em';
+    const half = Math.round(W * 0.06);
+    ctx.fillStyle = MUTED;
+    ctx.fillRect(cx - half, cy - m.etym * 2.2, half * 2, 1);
+    ctx.fillRect(cx - half, cy + m.etym * 1.2, half * 2, 1);
     ctx.textAlign = 'center';
+    ctx.font = `400 ${m.small}px ${MONO}`;
+    spacing(ctx, '0.14em');
     ctx.fillText('FINIS', cx, cy);
-    ctx.fillRect(cx - Math.round(W * 0.06), cy + Math.round(W * 0.03), Math.round(W * 0.12), 1);
-    ctx.font = `italic ${Math.round(W * 0.048)}px ${SERIF}`;
-    ctx.letterSpacing = '0';
-    ctx.fillText(C.title, cx, cy + Math.round(W * 0.1));
+    ctx.font = `italic 400 ${m.etym * 1.1}px ${SERIF}`;
+    spacing(ctx, '0px');
+    ctx.fillText(BOOK.title, cx, cy + m.etym * 3.6);
     ctx.textAlign = 'left';
     return;
   }
 }
 
-function makeCanvasTexture(spec: { t: string; i?: number }, side: 'l' | 'r', si: number): THREE.CanvasTexture {
-  const cv = document.createElement('canvas');
-  cv.width = TEX_W;
-  cv.height = TEX_H;
-  const ctx = cv.getContext('2d')!;
-  drawPageToCanvas(ctx, spec, side, si);
-  const tex = new THREE.CanvasTexture(cv);
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  return tex;
-}
+// ── Shaders ──────────────────────────────────────────────────────────────────
+// A turning page is modelled as an inextensible sheet rolled over a cylinder.
+// Everything past the fold line wraps half-way round a cylinder of radius uR and
+// then continues flat, face down, back the way it came. Book space: the spine is
+// the line x = 0, a page is 1 wide and uA tall.
+const FOLD_UNIFORMS = /* glsl */`
+  uniform float uA;        // page height / width
+  uniform vec2  uFoldP;    // a point on the line where the page leaves the book
+  uniform vec2  uFoldN;    // unit normal to that line, pointing at the lifted side
+  uniform float uR;        // curl radius
+  uniform float uShadow;   // 0 when no page is lifted
+  const float PI = 3.14159265;
+`;
 
-// ── Shaders ─────────────────────────────────────────────────────────────────
-const vertexShader = /* glsl */`
-  // Conical developable surface page flip.
-  // The leaf is in local coordinates: x ∈ [0,1], y ∈ [-0.775, 0.775].
-  // cornerPos is the current position of the dragged bottom-right corner.
+// Darkening cast on whatever lies beneath the lifted page
+const SHADOW_FN = /* glsl */`
+  float gutter(float distToSpine) {
+    return 1.0 - 0.14 * exp(-distToSpine / 0.045);
+  }
 
-  uniform vec2  cornerPos;   // current corner position in scene space
-  uniform float flipSign;    // +1 = forward (right→left), -1 = backward (left→right)
+  float flapShadow(vec2 X) {
+    if (uShadow <= 0.0) return 0.0;
+    float xn = dot(X - uFoldP, uFoldN);
+    float s;
+    if (xn > 0.0) {
+      // Just uncovered: in the shade of the curl's overhang
+      s = 0.5 * exp(-max(xn - uR, 0.0) / (uR * 1.1 + 0.012));
+    } else {
+      // Beneath the flat part of the flap, offset away from the light
+      vec2 Xs = X - vec2(0.3, -0.45) * uR;
+      float xs = dot(Xs - uFoldP, uFoldN);
+      vec2 Y = Xs + (PI * uR - 2.0 * xs) * uFoldN;   // the bit of page overhead
+      vec2 q = abs(Y - vec2(0.5, 0.0)) - vec2(0.5, uA * 0.5);
+      float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+      float blur = 0.018 + uR * 1.3;
+      s = 0.5 * (1.0 - smoothstep(-blur * 0.35, blur, sd)) * (1.0 - smoothstep(0.0, blur, xs));
+    }
+    return s * uShadow;
+  }
+`;
 
+const leafVert = /* glsl */`
+  ${FOLD_UNIFORMS}
   varying vec2  vUv;
-  varying float vHeight;     // z lift for shading
-  varying float vDistFold;   // signed distance from fold line (for AO)
+  varying vec2  vRest;
+  varying vec3  vNormal;
+  varying float vD;
 
   void main() {
     vUv = uv;
+    vec3 p = vec3(position.x, position.y * uA, 0.0);
+    vRest = p.xy;
+    vec3 n = vec3(0.0, 0.0, 1.0);
 
-    // Rest corner of this leaf (bottom-right in scene space for forward flip)
-    vec2 restCorner = vec2(flipSign * 1.0, -0.775);
-    vec2 corner = cornerPos;
-
-    vec2 drag = corner - restCorner;
-    float dragLen = length(drag);
-
-    vec3 pos = position;
-    vHeight = 0.0;
-    vDistFold = 0.0;
-
-    if (dragLen > 0.001) {
-      // Fold line = perpendicular bisector of restCorner → corner
-      vec2 mid = 0.5 * (restCorner + corner);
-      vec2 foldN = -normalize(drag);         // negated: d>0 selects the "being lifted" side
-      vec2 foldT = vec2(-foldN.y, foldN.x); // tangent along fold line
-
-      vec2 toV = position.xy - mid;
-      float d  = dot(toV, foldN);  // signed distance from fold line
-      float t  = dot(toV, foldT);  // position along fold line
-
-      vDistFold = d;
-
-      if (d > 0.0) {
-        // This vertex is on the "lifted" side.
-        // Cone taper: radius of curvature grows away from the dragged corner.
-        // The drag corner is at (corner - mid) projected onto foldT.
-        float cornerAlong = dot(corner - mid, foldT);
-        float fromCorner  = abs(t - cornerAlong);
-        float R = max(0.025, 0.045 + fromCorner * 0.28);
-
-        float angle = min(d / R, 3.14159265);
-
-        // Map vertex: rotate arc around fold line
-        vec2 base = position.xy - d * foldN;
-        pos.xy = base + R * sin(angle) * foldN;
-        pos.z  = R * (1.0 - cos(angle));
+    float d = dot(p.xy - uFoldP, uFoldN);
+    vD = d;
+    if (d > 0.0) {
+      vec2 base = p.xy - d * uFoldN;
+      float arc = PI * uR;
+      if (d < arc) {
+        float th = d / uR;
+        p.xy = base + uR * sin(th) * uFoldN;
+        p.z  = uR * (1.0 - cos(th));
+        n = vec3(-sin(th) * uFoldN, cos(th));
+      } else {
+        p.xy = base - (d - arc) * uFoldN;
+        p.z  = 2.0 * uR;
+        n = vec3(0.0, 0.0, -1.0);
       }
     }
-
-    vHeight = pos.z;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    vNormal = n;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
   }
 `;
 
-const fragmentShader = /* glsl */`
-  uniform sampler2D frontTex;
-  uniform sampler2D backTex;
-
+const leafFrag = /* glsl */`
+  ${FOLD_UNIFORMS}
+  ${SHADOW_FN}
+  uniform sampler2D uFront;
+  uniform sampler2D uBack;
   varying vec2  vUv;
-  varying float vHeight;
-  varying float vDistFold;
+  varying vec2  vRest;
+  varying vec3  vNormal;
+  varying float vD;
 
   void main() {
-    vec4 color;
-    float brightness = 1.0;
-
+    vec3 N = normalize(vNormal);
+    vec3 col;
     if (gl_FrontFacing) {
-      color = texture2D(frontTex, vUv);
+      col = texture2D(uFront, vUv).rgb;
     } else {
-      // Mirror U for back face, dim 20%
-      color = texture2D(backTex, vec2(1.0 - vUv.x, vUv.y));
-      brightness = 0.80;
+      col = texture2D(uBack, vec2(1.0 - vUv.x, vUv.y)).rgb;
+      N = -N;
     }
-
-    // Blinn-Phong sheen at curl peak
-    float sheen = pow(clamp(vHeight * 2.8, 0.0, 1.0), 2.2) * 0.22;
-
-    // Ambient occlusion near fold crease
-    float ao = 0.82 + 0.18 * clamp(vHeight * 9.0, 0.0, 1.0);
-
-    // Cast shadow from lifted leaf onto page below (darkens the base page region)
-    // approximated by AO above; actual shadow is on the shadow plane mesh
-
-    vec3 lit = color.rgb * brightness * ao + sheen;
-    gl_FragColor = vec4(lit, color.a);
+    // Matte paper lit from the upper left; a flat page is exactly 1.0
+    float light = 0.5 + 0.5 * N.z + 0.24 * dot(N.xy, normalize(vec2(-0.6, 0.5)));
+    col *= clamp(light, 0.4, 1.1) * gutter(vRest.x);
+    if (vD <= 0.0) col *= 1.0 - flapShadow(vRest);
+    gl_FragColor = vec4(col, 1.0);
   }
 `;
 
-// Shadow plane shaders (simple gradient darkening under the curl)
-const shadowVert = /* glsl */`
+const pageVert = /* glsl */`
+  uniform float uShift;
   varying vec2 vUv;
+  varying vec2 vPos;
   void main() {
     vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-const shadowFrag = /* glsl */`
-  uniform float strength;
-  uniform float foldX;    // x position of fold axis (0..1 in shadow UV space)
-  varying vec2 vUv;
-  void main() {
-    // Shadow is strongest just to the right of the fold and fades
-    float d = vUv.x - foldX;
-    float alpha = strength * clamp(1.0 - d * 4.0, 0.0, 1.0) * clamp(d * 8.0, 0.0, 1.0);
-    gl_FragColor = vec4(0.0, 0.0, 0.0, alpha);
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vPos = world.xy - vec2(uShift, 0.0);
+    gl_Position = projectionMatrix * viewMatrix * world;
   }
 `;
 
-// ── Audio ───────────────────────────────────────────────────────────────────
+const pageFrag = /* glsl */`
+  ${FOLD_UNIFORMS}
+  ${SHADOW_FN}
+  uniform sampler2D uMap;
+  varying vec2 vUv;
+  varying vec2 vPos;
+  void main() {
+    vec3 col = texture2D(uMap, vUv).rgb;
+    col *= gutter(abs(vPos.x)) * (1.0 - flapShadow(vPos));
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+// Soft shadow the whole book casts on the table
+const groundFrag = /* glsl */`
+  uniform float uA;
+  uniform vec2  uExtent;   // book's left and right edge
+  varying vec2  vPos;
+  void main() {
+    float halfW = (uExtent.y - uExtent.x) * 0.5;
+    vec2 c = vec2((uExtent.x + uExtent.y) * 0.5 + 0.008, -0.016);
+    vec2 q = abs(vPos - c) - vec2(halfW, uA * 0.5);
+    float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+    float a = 0.3 * (1.0 - smoothstep(-0.012, 0.075, sd)) * step(0.001, halfW);
+    gl_FragColor = vec4(0.13, 0.08, 0.03, a);
+  }
+`;
+
+// ── Audio ────────────────────────────────────────────────────────────────────
 let _audioCtx: AudioContext | null = null;
-function getCtx() {
-  const Ctor = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
-  if (!Ctor) return null;
-  if (!_audioCtx) _audioCtx = new Ctor();
-  return _audioCtx;
-}
 function playFlip(forward: boolean) {
   try {
-    const ctx = getCtx(); if (!ctx) return;
+    const Ctor = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+    if (!Ctor) return;
+    const ctx = (_audioCtx ??= new Ctor());
     const go = () => {
-      const dur = 0.36;
+      const dur = 0.32;
       const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
       const d = buf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       const src = ctx.createBufferSource(); src.buffer = buf;
       const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
       bp.frequency.setValueAtTime(forward ? 3200 : 1800, ctx.currentTime);
-      bp.frequency.exponentialRampToValueAtTime(forward ? 700 : 400, ctx.currentTime + 0.26);
+      bp.frequency.exponentialRampToValueAtTime(forward ? 700 : 400, ctx.currentTime + 0.24);
       bp.Q.value = 0.7;
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, ctx.currentTime);
-      g.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 0.016);
+      g.gain.linearRampToValueAtTime(0.22, ctx.currentTime + 0.02);
       g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
       src.connect(bp); bp.connect(g); g.connect(ctx.destination);
       src.start();
@@ -470,432 +609,606 @@ function playFlip(forward: boolean) {
 }
 
 // ── Main book controller ─────────────────────────────────────────────────────
+type V2 = { x: number; y: number };
+
+interface Flip {
+  t: number;                // index of the leaf in the air
+  G: V2;                    // where the leaf is held, in its resting position
+  P: V2;                    // where that held point is now
+  V: V2;
+  target: V2;
+  mode: 'drag' | 'settle' | 'auto' | 'peek';
+  fromFlipped: boolean;     // leaf started on the left (turning back)
+  toFlipped: boolean;       // where a settling leaf will land
+  s: number;                // progress of an automatic turn, 0..1
+  dur: number;
+}
+
 function initBook() {
-  const canvas  = document.getElementById('book-canvas') as HTMLCanvasElement;
-  const dotsRow = document.getElementById('dots-row')!;
-  const hint    = document.getElementById('flip-hint') as HTMLParagraphElement;
+  const canvas = document.getElementById('book-canvas') as HTMLCanvasElement | null;
+  const stage  = document.getElementById('book-stage') as HTMLDivElement | null;
+  const dotsRow = document.getElementById('dots-row');
+  const hint   = document.getElementById('flip-hint');
+  if (!canvas || !stage || !dotsRow || !hint) return;
 
-  if (!canvas) return;
+  const abort = new AbortController();
+  const on = { signal: abort.signal };
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // ── Sizing helper ─────────────────────────────────────────────────────────
-  function computePageW() {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const isMobile = vw <= 600;
-    if (isMobile) return Math.min(vw - 32, 320);
-    return Math.max(240, Math.min(vw * 0.37, (vh - 160) / 1.55, 490));
-  }
-
-  let pageW = computePageW();
-  let pageH = pageW * 1.55;
-  const isMobile = () => window.innerWidth <= 600;
-
-  // ── Three.js setup ────────────────────────────────────────────────────────
+  // ── Renderer ──────────────────────────────────────────────────────────────
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
-
-  // Scene is always 2 × 1.55 units (or 1 × 1.55 on mobile)
-  // We use an orthographic camera that exactly fits this rect.
-  const SCENE_HALF_W = 1.0; // half-width (each page = 1 unit, two pages = 2 wide)
-  const SCENE_HALF_H = 0.775;
-
-  const camera = new THREE.OrthographicCamera(
-    -SCENE_HALF_W, SCENE_HALF_W,
-     SCENE_HALF_H, -SCENE_HALF_H,
-    0.001, 100
-  );
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
   camera.position.z = 5;
-
   const scene = new THREE.Scene();
+  const book = new THREE.Group();   // slides sideways so a closed book sits centred
+  scene.add(book);
 
-  function resize() {
-    pageW = computePageW();
-    pageH = pageW * 1.55;
-    const mobile = isMobile();
-    const cw = mobile ? pageW : pageW * 2;
-    const ch = pageH;
-    canvas.style.width  = cw + 'px';
-    canvas.style.height = ch + 'px';
-    renderer.setSize(cw, ch, false);
-    const hw = mobile ? 0.5 : 1.0;
-    camera.left   = -hw; camera.right  = hw;
-    camera.top    = SCENE_HALF_H; camera.bottom = -SCENE_HALF_H;
-    camera.updateProjectionMatrix();
-  }
-  resize();
+  const fold = {
+    uA:      { value: 1.5 },
+    uFoldP:  { value: new THREE.Vector2(10, 0) },
+    uFoldN:  { value: new THREE.Vector2(1, 0) },
+    uR:      { value: 0.0001 },
+    uShadow: { value: 0 },
+  };
+  const uShift = { value: 0 };
 
-  // ── Textures ──────────────────────────────────────────────────────────────
-  // Pre-render all spread textures
-  const textures: Array<{ l: THREE.CanvasTexture; r: THREE.CanvasTexture }> =
-    SPREADS.map((s, i) => ({
-      l: makeCanvasTexture(s.l, 'l', i),
-      r: makeCanvasTexture(s.r, 'r', i),
-    }));
+  const unitPlane = new THREE.PlaneGeometry(1, 1);
+  const makePage = (x: number) => {
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { ...fold, uShift, uMap: { value: null as THREE.Texture | null } },
+      vertexShader: pageVert,
+      fragmentShader: pageFrag,
+    });
+    const mesh = new THREE.Mesh(unitPlane, mat);
+    mesh.position.x = x;
+    book.add(mesh);
+    return mesh;
+  };
+  const leftPage  = makePage(-0.5);
+  const rightPage = makePage(0.5);
 
-  // ── Static page meshes ────────────────────────────────────────────────────
-  // Left page: x ∈ [-1, 0], Right page: x ∈ [0, 1]
-  const pageGeo = new THREE.PlaneGeometry(1.0, 1.55);
-
-  const leftMat  = new THREE.MeshBasicMaterial({ map: textures[0].l, side: THREE.FrontSide });
-  const rightMat = new THREE.MeshBasicMaterial({ map: textures[0].r, side: THREE.FrontSide });
-  const leftMesh  = new THREE.Mesh(pageGeo, leftMat);
-  const rightMesh = new THREE.Mesh(pageGeo, rightMat);
-  leftMesh.position.x  = -0.5;
-  rightMesh.position.x =  0.5;
-  leftMesh.position.z  = 0.001;
-  rightMesh.position.z = 0.001;
-  scene.add(leftMesh, rightMesh);
-
-  // Spine line
-  const spineGeo = new THREE.PlaneGeometry(0.003, 1.55);
-  const spineMat = new THREE.MeshBasicMaterial({ color: 0x8a7c68, opacity: 0.35, transparent: true });
-  scene.add(new THREE.Mesh(spineGeo, spineMat));
-
-  // Drop shadow behind book
-  const shadowGeo = new THREE.PlaneGeometry(2.0, 1.55);
-  const shadowMat = new THREE.ShaderMaterial({
-    uniforms: { strength: { value: 0 }, foldX: { value: 0.5 } },
-    vertexShader: shadowVert,
-    fragmentShader: shadowFrag,
+  const groundMat = new THREE.ShaderMaterial({
+    uniforms: { uA: fold.uA, uShift, uExtent: { value: new THREE.Vector2(0, 1) } },
+    vertexShader: pageVert,
+    fragmentShader: groundFrag,
     transparent: true,
     depthWrite: false,
   });
-  const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
-  shadowMesh.position.z = 0.0005;
-  scene.add(shadowMesh);
+  const ground = new THREE.Mesh(unitPlane, groundMat);
+  ground.position.z = -0.01;
+  book.add(ground);
 
-  // ── Leaf mesh (conical flip geometry) ─────────────────────────────────────
-  // Two geometries: forward (right page, x:0→1) and backward (left page, x:-1→0).
-  // No scale mirroring — coordinate spaces match scene space cleanly.
-  const leafGeoFwd = new THREE.PlaneGeometry(1.0, 1.55, 60, 40);
-  leafGeoFwd.translate(0.5, 0, 0);   // spine at x=0, right edge at x=1
-
-  const leafGeoBwd = new THREE.PlaneGeometry(1.0, 1.55, 60, 40);
-  leafGeoBwd.translate(-0.5, 0, 0);  // spine at x=0, left edge at x=-1
-
-  const leafUniforms = {
-    frontTex:  { value: textures[0].r },
-    backTex:   { value: textures[1].l },
-    cornerPos: { value: new THREE.Vector2(1.0, -0.775) },
-    flipSign:  { value: 1.0 },
-  };
+  const leafGeo = new THREE.PlaneGeometry(1, 1, 96, 128);
+  leafGeo.translate(0.5, 0, 0);   // spine at x = 0
   const leafMat = new THREE.ShaderMaterial({
-    uniforms: leafUniforms,
-    vertexShader,
-    fragmentShader,
+    uniforms: { ...fold, uFront: { value: null as THREE.Texture | null }, uBack: { value: null as THREE.Texture | null } },
+    vertexShader: leafVert,
+    fragmentShader: leafFrag,
     side: THREE.DoubleSide,
-    transparent: false,
   });
-  const leafMesh = new THREE.Mesh(leafGeoFwd, leafMat);
-  leafMesh.position.z = 0.002;
-  leafMesh.visible = false;
-  scene.add(leafMesh);
+  const leaf = new THREE.Mesh(leafGeo, leafMat);
+  leaf.position.z = 0.002;
+  leaf.frustumCulled = false;
+  leaf.visible = false;
+  book.add(leaf);
 
-  // ── Spread state ──────────────────────────────────────────────────────────
-  let current = 0;
+  // ── Layout ────────────────────────────────────────────────────────────────
+  let single = false;
+  let pageW = 0, pageH = 0, A = 1.5;
+  let marginX = 0, marginY = 0;
+  let pixelRatio = 1;
+  let poemSize = 12;
+  let leaves: Leaf[] = [];
+  let N = 0;
+  let turned = 0;   // leaves lying on the left
+  let goal = 0;     // where queued turns are heading
+  let flip: Flip | null = null;
+  let shift = 0;
 
-  function showSpread(idx: number) {
-    leftMat.map  = textures[idx].l;
-    rightMat.map = textures[idx].r;
-    leftMat.needsUpdate  = true;
-    rightMat.needsUpdate = true;
-    dotsRow.querySelectorAll('.dot').forEach((d, i) =>
-      d.setAttribute('aria-selected', i === idx ? 'true' : 'false')
+  const maxTurned = () => (single ? N - 1 : N);
+  const measureCtx = document.createElement('canvas').getContext('2d')!;
+
+  // Textures are typeset at device resolution, one per page, on first use
+  const textures = new Map<string, THREE.CanvasTexture>();
+  function texFor(spec: Spec, side: 'l' | 'r'): THREE.CanvasTexture {
+    const key = `${specKey(spec)}:${side}`;
+    let tex = textures.get(key);
+    if (!tex) {
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(pageW * pixelRatio);
+      cv.height = Math.round(pageH * pixelRatio);
+      const ctx = cv.getContext('2d')!;
+      ctx.scale(cv.width / pageW, cv.height / pageH);
+      drawPage(ctx, spec, side, pageW, pageH, poemSize);
+      tex = new THREE.CanvasTexture(cv);
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      textures.set(key, tex);
+    }
+    return tex;
+  }
+  function clearTextures() {
+    textures.forEach((t) => t.dispose());
+    textures.clear();
+  }
+
+  function layout() {
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    const wasSingle = single;
+    const hadLeaves = N > 0;
+    // Remember what the reader is looking at, to find it again in the new layout
+    const anchor = hadLeaves ? (leaves[Math.min(turned, N - 1)].front) : null;
+    const atEnd = hadLeaves && turned >= N;
+
+    single = vw < 820;
+    if (single) {
+      pageW = Math.min(vw - 28, 440);
+      pageH = clamp(vh - 64 - 110, 700, 860);
+    } else {
+      // Tall enough that the longest poem stays legible, even if that means a short scroll
+      pageH = clamp(vh - 64 - 100, 720, 940);
+      pageW = Math.min(pageH / 1.5, (vw - 64) / 2, 600);
+      pageH = Math.min(pageH, Math.max(720, pageW * 1.62));
+    }
+    pageW = Math.floor(pageW / 2) * 2;
+    pageH = Math.round(pageH);
+    A = pageH / pageW;
+    marginY = Math.round(pageW * 0.14);
+    marginX = single ? Math.round((vw - pageW) / 2) : marginY;
+
+    const bookW = single ? pageW : pageW * 2;
+    stage.style.width = bookW + 'px';
+    stage.style.height = pageH + 'px';
+    canvas.style.left = -marginX + 'px';
+    canvas.style.top = -marginY + 'px';
+    canvas.style.width = bookW + marginX * 2 + 'px';
+    canvas.style.height = pageH + marginY * 2 + 'px';
+
+    pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(bookW + marginX * 2, pageH + marginY * 2, false);
+
+    const mx = marginX / pageW, my = marginY / pageW;
+    camera.left = (single ? 0 : -1) - mx;
+    camera.right = 1 + mx;
+    camera.top = A / 2 + my;
+    camera.bottom = -A / 2 - my;
+    camera.updateProjectionMatrix();
+
+    fold.uA.value = A;
+    leftPage.scale.y = rightPage.scale.y = A;
+    ground.scale.set(8, A + 4, 1);
+
+    clearTextures();
+    poemSize = fitPoemSize(measureCtx, pageW, pageH);
+
+    if (!hadLeaves || wasSingle !== single) {
+      leaves = buildLeaves(single);
+      N = leaves.length;
+      flip = null;
+      leaf.visible = false;
+      turned = 0;
+      if (anchor && !atEnd) {
+        const k = specKey(anchor);
+        const front = leaves.findIndex((l) => specKey(l.front) === k);
+        const back = leaves.findIndex((l) => specKey(l.back) === k);
+        turned = front >= 0 ? front : back >= 0 ? back + 1 : 0;
+      } else if (atEnd) {
+        turned = maxTurned();
+      }
+      turned = clamp(turned, 0, maxTurned());
+      goal = turned;
+      buildDots();
+    }
+    if (flip) setLeafTextures(flip.t);
+    shift = shiftTarget();
+    showPages();
+    invalidate();
+  }
+
+  // ── What lies flat ────────────────────────────────────────────────────────
+  function showPages() {
+    // While leaf t is in the air, the pages either side of it are exposed
+    const l = flip ? flip.t - 1 : turned - 1;
+    const r = flip ? flip.t + 1 : turned;
+    leftPage.visible = !single && l >= 0;
+    rightPage.visible = r < N;
+    if (leftPage.visible)  leftPage.material.uniforms.uMap.value = texFor(leaves[l].back, 'l');
+    if (rightPage.visible) rightPage.material.uniforms.uMap.value = texFor(leaves[r].front, 'r');
+  }
+
+  function setLeafTextures(t: number) {
+    leafMat.uniforms.uFront.value = texFor(leaves[t].front, 'r');
+    leafMat.uniforms.uBack.value = texFor(leaves[t].back, 'l');
+  }
+
+  function buildDots() {
+    dotsRow!.replaceChildren();
+    for (let i = 0; i <= maxTurned(); i++) {
+      const dot = document.createElement('button');
+      dot.className = 'dot';
+      dot.type = 'button';
+      dot.setAttribute('aria-label', dotLabel(i));
+      dot.addEventListener('click', () => goTo(i), on);
+      dotsRow!.appendChild(dot);
+    }
+    updateDots();
+  }
+  function dotLabel(i: number): string {
+    if (i >= N) return 'Back cover';
+    const s = leaves[i].front;
+    if (s.t === 'poem') return BOOK.poems[s.i!].title;
+    return ({ cover: 'Cover', title: 'Title page', preface: 'Preface', finis: 'Finis', endpaper: 'Last page' } as Record<string, string>)[s.t] ?? 'Page';
+  }
+  function updateDots() {
+    const at = flip && flip.mode !== 'peek' ? goal : turned;
+    dotsRow!.querySelectorAll('.dot').forEach((d, i) =>
+      d.setAttribute('aria-current', i === at ? 'true' : 'false')
     );
-    // Hide/show pages on mobile (single page: show right only)
-    if (isMobile()) {
-      leftMesh.visible  = false;
-      rightMesh.visible = true;
-    } else {
-      leftMesh.visible  = true;
-      rightMesh.visible = true;
+  }
+
+  // ── Page-turn physics ─────────────────────────────────────────────────────
+  const mirror = (g: V2): V2 => ({ x: -g.x, y: g.y });
+  const restOf = (f: Flip): V2 => (f.fromFlipped ? mirror(f.G) : f.G);
+  const progress = (f: Flip) => clamp(Math.hypot(f.G.x - f.P.x, f.G.y - f.P.y) / (2 * f.G.x), 0, 1);
+  const isCoverLeaf = (t: number) => leaves[t].front.t === 'cover' || leaves[t].back.t === 'back';
+
+  // Paper does not stretch: the held point can never be farther from either
+  // end of the spine than it is when the page lies flat.
+  function constrain(f: Flip) {
+    const ends = [{ x: 0, y: -A / 2 }, { x: 0, y: A / 2 }];
+    for (let k = 0; k < 4; k++) {
+      for (const s of ends) {
+        const reach = Math.hypot(f.G.x - s.x, f.G.y - s.y);
+        const dx = f.P.x - s.x, dy = f.P.y - s.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > reach) {
+          f.P.x = s.x + (dx * reach) / dist;
+          f.P.y = s.y + (dy * reach) / dist;
+        }
+      }
     }
   }
 
-  // ── Spring physics ────────────────────────────────────────────────────────
-  // Corner tracks from restX → targetX along x-axis.
-  // restX = 1.0 (right), targetX = -1.0 (flipped left) for forward.
-  const K  = 140; // stiffness  — softer so the snap feels weighted
-  const Cv = 32;  // damping    — overdamped (critical ≈ 2√140 ≈ 23.7), no bounce
-
-  let flip = {
-    active:    false,
-    dir:       1 as 1 | -1,   // 1=forward, -1=backward
-    cornerX:   1.0,
-    cornerVel: 0.0,
-    targetX:   1.0,
-    dragging:  false,
-    dragStart: 0,              // x at drag start (scene space)
-    pending:   1,              // spread we're flipping to
-    committed: false,          // have we already committed the new spread?
-  };
-
-  let lastTime = 0;
-  let rafId = 0;
-  let needsRender = true;
-
-  function beginFlip(dir: 1 | -1) {
-    if (flip.active) return;
-    const next = current + dir;
-    if (next < 0 || next >= SPREADS.length) return;
-
-    flip.active    = true;
-    flip.dir       = dir;
-    flip.pending   = next;
-    flip.committed = false;
-    flip.cornerX   = dir === 1 ? 1.0 : -1.0;
-    flip.cornerVel = 0;
-    flip.targetX   = dir === 1 ? -1.0 : 1.0;
-
-    // Set leaf uniforms
-    leafUniforms.flipSign.value = dir;
-    if (dir === 1) {
-      leafMesh.geometry           = leafGeoFwd;  // x: 0→1  (right page)
-      leafUniforms.frontTex.value = textures[current].r;
-      leafUniforms.backTex.value  = textures[next].l;
-      leafMesh.position.x         = 0;
-      leafMesh.scale.x            = 1;
-      rightMesh.visible           = false;
-    } else {
-      leafMesh.geometry           = leafGeoBwd;  // x: -1→0 (left page)
-      leafUniforms.frontTex.value = textures[current].l;
-      leafUniforms.backTex.value  = textures[next].r;
-      leafMesh.position.x         = 0;
-      leafMesh.scale.x            = 1;
-      leftMesh.visible            = false;
+  // Damped spring pulling the held point toward its target
+  function spring(f: Flip, dt: number, omega: number, zeta: number) {
+    const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
+    const h = dt / steps;
+    for (let k = 0; k < steps; k++) {
+      f.V.x += (omega * omega * (f.target.x - f.P.x) - 2 * zeta * omega * f.V.x) * h;
+      f.V.y += (omega * omega * (f.target.y - f.P.y) - 2 * zeta * omega * f.V.y) * h;
+      f.P.x += f.V.x * h;
+      f.P.y += f.V.y * h;
     }
-    leafMesh.visible = true;
+    constrain(f);
+  }
+
+  function startFlip(t: number, G: V2, fromFlipped: boolean, mode: Flip['mode']): Flip {
+    const P = fromFlipped ? mirror(G) : { ...G };
+    flip = { t, G, P, V: { x: 0, y: 0 }, target: { ...P }, mode, fromFlipped, toFlipped: !fromFlipped, s: 0, dur: 0.8 };
+    setLeafTextures(t);
+    leaf.visible = true;
+    showPages();
+    invalidate();
+    return flip;
+  }
+
+  function finishFlip(flipped: boolean) {
+    if (!flip) return;
+    turned = flipped ? flip.t + 1 : flip.t;
+    flip = null;
+    leaf.visible = false;
+    showPages();
+    if (goal !== turned) startAuto(goal > turned ? 1 : -1, 0.42);
+    updateDots();
+  }
+
+  function startAuto(dir: 1 | -1, dur: number) {
+    const t = dir === 1 ? turned : turned - 1;
+    if (t < 0 || t >= maxTurned()) { goal = turned; return; }
+    const f = startFlip(t, { x: 1, y: -A / 2 }, dir === -1, 'auto');
+    f.dur = dur;
     playFlip(dir === 1);
-    needsRender = true;
+    hint!.style.opacity = '0';
   }
 
-  function snapTo(committed: boolean) {
-    if (!flip.active || flip.dragging) return;
-    // If past center, commit to target; else snap back.
-    const mid = (flip.dir === 1) ? 0.0 : 0.0;
-    if (committed || (flip.dir === 1 ? flip.cornerX < mid : flip.cornerX > mid)) {
-      flip.targetX = flip.dir === 1 ? -1.0 : 1.0;
-    } else {
-      flip.targetX = flip.dir === 1 ? 1.0 : -1.0;
+  function stepFlip(f: Flip, dt: number) {
+    if (f.mode === 'auto') {
+      // The bottom corner is carried over in a low arc
+      f.s = Math.min(1, f.s + dt / f.dur);
+      const e = f.s < 0.5 ? 4 * f.s ** 3 : 1 - (-2 * f.s + 2) ** 3 / 2;
+      const a = (f.fromFlipped ? 1 - e : e) * Math.PI;
+      const lift = isCoverLeaf(f.t) ? 0.12 : 0.27;
+      f.P.x = Math.cos(a);
+      f.P.y = -A / 2 + lift * Math.sin(a);
+      constrain(f);
+      if (f.s >= 1) finishFlip(!f.fromFlipped);
+      return;
     }
-    needsRender = true;
+    if (f.mode === 'drag') {
+      spring(f, dt, 40, 1);
+      return;
+    }
+    if (f.mode === 'peek') {
+      spring(f, dt, 16, 0.8);
+      return;
+    }
+    // settle: fall to whichever side it was let go toward
+    f.target = f.toFlipped ? mirror(f.G) : { ...f.G };
+    spring(f, dt, 10.5, 1);
+    const dx = f.P.x - f.target.x, dy = f.P.y - f.target.y;
+    if (Math.hypot(dx, dy) < 0.003 && Math.hypot(f.V.x, f.V.y) < 0.03) finishFlip(f.toFlipped);
   }
 
-  function updateFlip(dt: number) {
-    if (!flip.active || flip.dragging) return;
-
-    const force = -K * (flip.cornerX - flip.targetX) - Cv * flip.cornerVel;
-    flip.cornerVel += force * dt;
-    flip.cornerX   += flip.cornerVel * dt;
-
-    // Commit spread at midpoint (when back face is showing)
-    if (!flip.committed) {
-      const mid = 0.0;
-      if ((flip.dir === 1 && flip.cornerX < mid) || (flip.dir === -1 && flip.cornerX > mid)) {
-        flip.committed = true;
-        current = flip.pending;
-        // Update the static pages to the new spread
-        if (flip.dir === 1) leftMat.map  = textures[current].l;
-        else                rightMat.map = textures[current].r;
-        leftMat.needsUpdate  = true;
-        rightMat.needsUpdate = true;
-        dotsRow.querySelectorAll('.dot').forEach((d, i) =>
-          d.setAttribute('aria-selected', i === current ? 'true' : 'false')
-        );
-      }
-    }
-
-    // During snap, ease corner Y back to rest (-0.775)
-    const snapProgress = Math.abs(flip.cornerX - flip.targetX) / 2.0;
-    const cornerY = -0.775 + (leafUniforms.cornerPos.value.y + 0.775) * snapProgress;
-    leafUniforms.cornerPos.value.set(flip.cornerX, Math.min(-0.2, cornerY));
-
-    const restX   = flip.dir === 1 ? 1.0 : -1.0;
-    const progress = Math.abs(flip.cornerX - restX) / 2.0;
-    shadowMat.uniforms.strength.value = Math.sin(progress * Math.PI) * 0.22;
-    shadowMat.uniforms.foldX.value    = (flip.cornerX + 1.0) / 2.0;
-
-    // Settled?
-    if (Math.abs(flip.cornerX - flip.targetX) < 0.003 && Math.abs(flip.cornerVel) < 0.01) {
-      flip.cornerX = flip.targetX;
-      flip.active  = false;
-      leafMesh.visible = false;
-      rightMesh.visible = true;
-      leftMesh.visible  = !isMobile();
-      shadowMat.uniforms.strength.value = 0;
-      // Ensure correct spread if we snapped BACK
-      if (!flip.committed) {
-        dotsRow.querySelectorAll('.dot').forEach((d, i) =>
-          d.setAttribute('aria-selected', i === current ? 'true' : 'false')
-        );
-      }
-    }
+  function release(f: Flip, cancelled = false) {
+    // Where the page is heading a moment from now decides which way it falls
+    const px = f.P.x + f.V.x * 0.18;
+    f.toFlipped = cancelled ? f.fromFlipped
+      : f.fromFlipped ? px < -0.3 * f.G.x
+      : px < 0.3 * f.G.x;
+    f.mode = 'settle';
+    goal = f.toFlipped ? f.t + 1 : f.t;
+    if (f.toFlipped !== f.fromFlipped) playFlip(f.toFlipped);
+    updateDots();
+    invalidate();
   }
 
-  // ── Render loop ───────────────────────────────────────────────────────────
-  function loop(ts: number) {
-    rafId = requestAnimationFrame(loop);
-    const dt = Math.min((ts - lastTime) / 1000, 0.05);
-    lastTime = ts;
-
-    if (flip.active) {
-      updateFlip(dt);
-      needsRender = true;
+  // A closed book sits in the middle of the stage; it slides over as it opens
+  function shiftTarget(): number {
+    if (single) return 0;
+    if (flip && flip.mode !== 'peek') {
+      const u = progress(flip);
+      if (flip.t === 0) return -0.5 * (1 - u);
+      if (flip.t === N - 1) return 0.5 * u;
+      return 0;
     }
-
-    if (needsRender) {
-      renderer.render(scene, camera);
-      needsRender = false;
-    }
+    const at = flip ? (flip.fromFlipped ? flip.t + 1 : flip.t) : turned;
+    return at === 0 ? -0.5 : at === N ? 0.5 : 0;
   }
-  rafId = requestAnimationFrame((ts) => { lastTime = ts; loop(ts); });
 
-  // ── Dots nav ──────────────────────────────────────────────────────────────
-  SPREADS.forEach((_, i) => {
-    const dot = document.createElement('button');
-    dot.className = 'dot';
-    dot.setAttribute('role', 'tab');
-    dot.setAttribute('aria-label', `Spread ${i + 1} of ${SPREADS.length}`);
-    dot.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
-    dot.addEventListener('click', () => {
-      if (i === current || flip.active) return;
-      if (Math.abs(i - current) === 1) {
-        beginFlip(i > current ? 1 : -1);
-        snapTo(true);
+  function updateUniforms() {
+    let left = turned > 0 ? 1 : 0;
+    let right = turned < N ? 1 : 0;
+    if (flip) {
+      const f = flip;
+      const dx = f.G.x - f.P.x, dy = f.G.y - f.P.y;
+      const len = Math.hypot(dx, dy);
+      const u = progress(f);
+      if (len < 1e-5) {
+        fold.uFoldP.value.set(10, 0);
+        fold.uFoldN.value.set(1, 0);
+        fold.uShadow.value = 0;
       } else {
-        current = i;
-        showSpread(current);
-        needsRender = true;
+        const nx = dx / len, ny = dy / len;
+        const mxp = (f.G.x + f.P.x) / 2, myp = (f.G.y + f.P.y) / 2;
+        // The curl is loosest mid-turn and flattens out as the page lands
+        const rMax = isCoverLeaf(f.t) ? 0.2 : 0.12;
+        const R = Math.max(1e-4, rMax * smooth(0, 0.12, u) * (1 - smooth(0.5, 1, u)));
+        // Start the roll a quarter-turn early so the held point stays under the
+        // pointer, but never so early that it would peel the page off the spine.
+        const dSpine = Math.max(
+          (0 - mxp) * nx + (-A / 2 - myp) * ny,
+          (0 - mxp) * nx + (A / 2 - myp) * ny,
+        );
+        const lead = Math.min((Math.PI * R) / 2, Math.max(0, -dSpine));
+        fold.uFoldP.value.set(mxp - lead * nx, myp - lead * ny);
+        fold.uFoldN.value.set(nx, ny);
+        fold.uR.value = R;
+        fold.uShadow.value = smooth(0, 0.04, u) * (1 - smooth(0.9, 1, u));
       }
-    });
-    dotsRow.appendChild(dot);
-  });
+      left = f.t > 0 ? 1 : u;
+      right = f.t < N - 1 ? 1 : 1 - u;
+    } else {
+      fold.uShadow.value = 0;
+    }
+    groundMat.uniforms.uExtent.value.set(-left, right);
+    uShift.value = shift;
+    book.position.x = shift;
+  }
 
-  showSpread(0);
+  // ── Render loop (runs only while something is moving) ─────────────────────
+  let raf = 0;
+  let last = 0;
+  function frame(ts: number) {
+    raf = 0;
+    const dt = clamp((ts - last) / 1000, 0, 1 / 30);
+    last = ts;
+    let moving = false;
+    if (flip) { stepFlip(flip, dt); moving = true; }
+    const target = shiftTarget();
+    if (Math.abs(target - shift) > 0.0004) {
+      shift += (target - shift) * (1 - Math.exp(-dt * 11));
+      moving = true;
+    } else {
+      shift = target;
+    }
+    updateUniforms();
+    renderer.render(scene, camera);
+    if (moving) invalidate();
+  }
+  function invalidate() {
+    if (raf) return;
+    last = performance.now();
+    raf = requestAnimationFrame(frame);
+  }
 
-  // ── Pointer interaction ───────────────────────────────────────────────────
-  let pointerDown  = false;
-  let pointerStartX = 0;
-  let pointerStartY = 0;
+  // ── Navigation ────────────────────────────────────────────────────────────
+  function cancelPeek() {
+    if (flip?.mode !== 'peek') return;
+    flip = null;
+    leaf.visible = false;
+    showPages();
+  }
 
-  // Convert client coords → scene space (-1..1 x, -0.775..0.775 y)
-  function toScene(clientX: number, clientY: number) {
-    const rect = canvas.getBoundingClientRect();
-    const nx = (clientX - rect.left) / rect.width;
-    const ny = (clientY - rect.top)  / rect.height;
+  function goTo(i: number) {
+    cancelPeek();
+    i = clamp(i, 0, maxTurned());
+    if (flip?.mode === 'drag') return;
+    goal = i;
+    if (reducedMotion) {
+      flip = null;
+      leaf.visible = false;
+      turned = goal;
+      shift = shiftTarget();
+      showPages();
+      hint!.style.opacity = '0';
+    } else if (!flip && goal !== turned) {
+      startAuto(goal > turned ? 1 : -1, Math.abs(goal - turned) > 1 ? 0.42 : 0.8);
+    }
+    updateDots();
+    invalidate();
+  }
+  const nav = (dir: 1 | -1) => goTo((flip && flip.mode !== 'peek' ? goal : turned) + dir);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowRight') nav(1);
+    else if (e.key === 'ArrowLeft') nav(-1);
+  }, on);
+
+  // ── Pointer ───────────────────────────────────────────────────────────────
+  function toBook(e: PointerEvent): V2 {
+    const r = canvas!.getBoundingClientRect();
     return {
-      sx: (nx * 2 - 1),
-      sy: (1 - ny * 2) * 0.775,
+      x: camera.left + ((e.clientX - r.left) / r.width) * (camera.right - camera.left) - shift,
+      y: camera.top - ((e.clientY - r.top) / r.height) * (camera.top - camera.bottom),
     };
   }
 
-  // Corner hotspot: bottom-outer ~30% of each page.
-  // Returns the flip direction if the pointer is in a draggable corner, else null.
-  function cornerDir(clientX: number, clientY: number): 1 | -1 | null {
-    const { sx, sy } = toScene(clientX, clientY);
-    const mobile = isMobile();
-    // Bottom portion of the page only
-    if (sy > -0.22) return null;
-    if (mobile) {
-      // Single-page: only right corner (always forward)
-      return sx > 0.35 ? 1 : null;
-    }
-    // Two-page: right corner → forward, left corner → backward
-    if (sx >  0.52) return 1;
-    if (sx < -0.52) return -1;
-    return null;
+  // Which way a press at this spot would turn, and whether it can be dragged from there
+  function hit(p: V2): { dir: 1 | -1; grab: boolean; corner: boolean } | null {
+    if (Math.abs(p.y) > A / 2 || p.x > 1 || p.x < (single ? 0 : -1)) return null;
+    const at = flip && flip.mode !== 'peek' ? goal : turned;
+    const back = single ? p.x < 0.24 : p.x < 0;
+    const dir = back ? -1 : 1;
+    if (dir === 1 ? at >= maxTurned() : at <= 0) return null;
+    const outer = single ? (back ? 1 : p.x) : Math.abs(p.x);
+    return {
+      dir,
+      grab: single ? back || p.x > 0.5 : outer > 0.4,
+      corner: outer > 0.82 && p.y < -A / 2 + 0.2,
+    };
   }
 
-  canvas.addEventListener('pointermove', (e) => {
-    if (pointerDown || flip.active) return;
-    const dir = cornerDir(e.clientX, e.clientY);
-    // Show a grab cursor over draggable corners only
-    if (dir === 1 && current < SPREADS.length - 1)      canvas.style.cursor = 'grab';
-    else if (dir === -1 && current > 0)                  canvas.style.cursor = 'grab';
-    else                                                  canvas.style.cursor = 'default';
-  });
+  let press: { id: number; x: number; y: number; at: V2; moved: boolean; dragging: boolean } | null = null;
 
   canvas.addEventListener('pointerdown', (e) => {
-    if (flip.active) return;
-    const dir = cornerDir(e.clientX, e.clientY);
-    if (!dir) return;
-    const next = current + dir;
-    if (next < 0 || next >= SPREADS.length) return;
-
+    if (e.button !== 0 || press) return;
+    press = { id: e.pointerId, x: e.clientX, y: e.clientY, at: toBook(e), moved: false, dragging: false };
     canvas.setPointerCapture(e.pointerId);
-    canvas.style.cursor = 'grabbing';
-    pointerDown   = true;
-    pointerStartX = e.clientX;
-    pointerStartY = e.clientY;
-
-    beginFlip(dir);
-    flip.dragging  = true;
-    hint.style.opacity = '0';
-  });
+  }, on);
 
   canvas.addEventListener('pointermove', (e) => {
-    if (!pointerDown || !flip.active || !flip.dragging) return;
+    const p = toBook(e);
 
-    const rect  = canvas.getBoundingClientRect();
-    const pageW = isMobile() ? rect.width : rect.width / 2;
+    if (press && e.pointerId === press.id) {
+      if (press.dragging && flip) {
+        flip.target = p;
+        invalidate();
+        return;
+      }
+      if (press.moved || Math.hypot(e.clientX - press.x, e.clientY - press.y) < 5) return;
+      press.moved = true;
+      const h = hit(press.at);
+      if (!h || !h.grab || reducedMotion || (flip && flip.mode !== 'peek')) return;
 
-    const dx      = (e.clientX - pointerStartX) / pageW;
-    const startCX = flip.dir === 1 ? 1.0 : -1.0;
+      // Pick the page up by the spot that was pressed
+      const back = h.dir === -1;
+      const t = back ? turned - 1 : turned;
+      let f = flip;
+      if (!f || f.t !== t) {
+        cancelPeek();
+        const G = single
+          ? { x: back ? 1 : clamp(press.at.x, 0.4, 1), y: press.at.y }
+          : { x: clamp(Math.abs(press.at.x), 0.4, 1), y: press.at.y };
+        f = startFlip(t, G, back, 'drag');
+      }
+      f.mode = 'drag';
+      f.target = p;
+      goal = turned;
+      press.dragging = true;
+      canvas.style.cursor = 'grabbing';
+      hint.style.opacity = '0';
+      invalidate();
+      return;
+    }
 
-    // Clamp strictly to [−1, 1] so page can't fold outward past the spine
-    flip.cornerX = Math.max(-1.0, Math.min(1.0, startCX + dx));
+    if (e.pointerType !== 'mouse' || press) return;
+    const h = hit(p);
+    canvas.style.cursor = h ? (h.grab ? 'grab' : 'pointer') : 'default';
 
-    // Corner Y tracks the mouse — keeps the fold diagonal and realistic
-    const { sy } = toScene(e.clientX, e.clientY);
-    const cornerY = Math.max(-0.775, Math.min(-0.15, sy));
+    // Hovering a bottom corner lifts it a little
+    if (reducedMotion || (flip && flip.mode !== 'peek')) return;
+    if (h?.corner) {
+      const back = h.dir === -1;
+      const t = back ? turned - 1 : turned;
+      if (!flip || flip.t !== t) {
+        cancelPeek();
+        startFlip(t, { x: 1, y: -A / 2 }, back, 'peek');
+      }
+      const rest = restOf(flip!);
+      flip!.mode = 'peek';
+      flip!.target = { x: rest.x + (back ? 0.075 : -0.075), y: rest.y + 0.055 };
+      invalidate();
+    } else if (flip) {
+      unpeek();
+    }
+  }, on);
 
-    leafUniforms.cornerPos.value.set(flip.cornerX, cornerY);
-
-    const progress = Math.abs(flip.cornerX - startCX) / 2.0;
-    shadowMat.uniforms.strength.value = Math.sin(Math.min(progress, 1) * Math.PI) * 0.2;
-    shadowMat.uniforms.foldX.value    = (flip.cornerX + 1.0) / 2.0;
-    needsRender = true;
-  });
-
-  canvas.addEventListener('pointerup', (e) => {
-    if (!pointerDown) return;
-    pointerDown  = false;
-    flip.dragging = false;
-    canvas.style.cursor = 'default';
-
-    const rect  = canvas.getBoundingClientRect();
-    const pageW = isMobile() ? rect.width : rect.width / 2;
-    const totalDx = e.clientX - pointerStartX;
-
-    // Commit if: dragged past 30% of page width in correct direction,
-    // OR released with enough velocity toward the destination.
-    const draggedFar  = (flip.dir === 1 ? -totalDx : totalDx) > pageW * 0.30;
-    const fastRelease = (flip.dir === 1 ? -flip.cornerVel : flip.cornerVel) > 0.8;
-    snapTo(draggedFar || fastRelease);
-  });
-
-  // ── Keyboard ──────────────────────────────────────────────────────────────
-  function keyFlip(dir: 1 | -1) {
-    if (flip.active) return;
-    beginFlip(dir);
-    snapTo(true);
+  function unpeek() {
+    if (flip?.mode !== 'peek') return;
+    flip.toFlipped = flip.fromFlipped;
+    flip.mode = 'settle';
+    invalidate();
   }
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight') keyFlip(1);
-    if (e.key === 'ArrowLeft')  keyFlip(-1);
-  });
+
+  function endPress(e: PointerEvent, cancelled: boolean) {
+    if (!press || e.pointerId !== press.id) return;
+    const { dragging, moved, at } = press;
+    press = null;
+    canvas!.style.cursor = 'default';
+    if (dragging) {
+      if (flip?.mode === 'drag') release(flip, cancelled);
+    } else if (!moved && !cancelled) {
+      const h = hit(at);
+      if (h) nav(h.dir);
+    }
+  }
+  canvas.addEventListener('pointerup', (e) => endPress(e, false), on);
+  canvas.addEventListener('pointercancel', (e) => endPress(e, true), on);
+  canvas.addEventListener('pointerleave', () => { if (!press) unpeek(); }, on);
 
   // ── Resize ────────────────────────────────────────────────────────────────
+  let lastW = document.documentElement.clientWidth;
+  let resizeTimer = 0;
   window.addEventListener('resize', () => {
-    resize();
-    needsRender = true;
-  });
+    // Mobile browsers resize on every scroll as their toolbars hide; ignore those
+    const w = document.documentElement.clientWidth;
+    if (single && w === lastW) return;
+    lastW = w;
+    clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(layout, 120);
+  }, on);
+
+  layout();
+
+  // Typeset again once the real fonts are in
+  const faces = [`400 16px ${SERIF}`, `italic 400 16px ${SERIF}`, `400 16px ${MONO}`];
+  Promise.all(faces.map((f) => document.fonts.load(f))).then(
+    () => { if (!abort.signal.aborted) layout(); },
+    () => {},
+  );
 
   // ── Cleanup on page transition ────────────────────────────────────────────
   document.addEventListener('astro:before-swap', () => {
-    cancelAnimationFrame(rafId);
+    abort.abort();
+    cancelAnimationFrame(raf);
+    clearTimeout(resizeTimer);
+    clearTextures();
+    unitPlane.dispose();
+    leafGeo.dispose();
     renderer.dispose();
-  });
+  }, { once: true });
 }
 
 document.addEventListener('astro:page-load', initBook);

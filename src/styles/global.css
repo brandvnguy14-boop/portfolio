@@ -1,5 +1,6 @@
 /* ── Fonts ─────────────────────────────────────────────── */
 @import '@fontsource-variable/fraunces/wght.css';
+@import '@fontsource-variable/fraunces/wght-italic.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/400-italic.css';
 
@@ -279,6 +280,28 @@ html.theme-transitioning::view-transition-new(root) {
 .prose.prose-poetry p + p {
   text-indent: 0;
   margin-top: 1.5em;
+}
+
+/* ── Letter ────────────────────────────────────────────── */
+.prose.prose-letter {
+  font-size: 1.0625rem;
+  line-height: 1.85;
+  font-variation-settings: 'opsz' 18;
+  hanging-punctuation: first;
+}
+
+.prose.prose-letter p,
+.prose.prose-letter p + p {
+  text-indent: 0;
+  margin: 0 0 1.85em;
+}
+
+.prose.prose-letter p:last-child {
+  margin-bottom: 0;
+}
+
+.prose.prose-letter em {
+  color: var(--prose-muted);
 }
 
 /* ── Pull-quote component ───────────────────────────────── */

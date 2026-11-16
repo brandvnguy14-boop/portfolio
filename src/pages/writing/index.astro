@@ -5,15 +5,19 @@ import { getCollection } from 'astro:content';
 
 const posts = (await getCollection('writing', ({ data }) => !data.draft))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+
+const order = ['essay', 'poetry', 'letter'] as const;
+const present = new Set<string>(['poetry', ...posts.map((p) => p.data.type)]);
+const types = order.filter((t) => present.has(t));
 ---
 
-<Base title="Writing — Brandon Nguyen" description="Essays and poetry by Brandon Nguyen.">
+<Base title="Writing — Brandon Nguyen" description="Poetry and letters by Brandon Nguyen.">
   <div class="writing-wrap">
     <header class="writing-header">
       <h1 class="writing-title">Writing</h1>
     </header>
 
-    <FilterPills active="all" />
+    <FilterPills active="all" types={types} />
 
     <ul class="writing-list">
       <!-- Featured collection -->

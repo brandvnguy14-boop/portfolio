@@ -4,7 +4,7 @@ import { getCollection } from 'astro:content';
 
 const posts = (await getCollection('writing', ({ data }) => !data.draft))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
-  .slice(0, 3);
+  .slice(0, 2);
 ---
 
 <Base title="Brandon Nguyen">
@@ -22,8 +22,7 @@ const posts = (await getCollection('writing', ({ data }) => !data.draft))
     </div>
   </section>
 
-  {posts.length > 0 && (
-    <section class="recent-posts">
+  <section class="recent-posts">
       <div class="recent-inner">
         <h2 class="recent-label mono">Recent</h2>
         <ul class="recent-list">
@@ -43,11 +42,16 @@ const posts = (await getCollection('writing', ({ data }) => !data.draft))
               </li>
             );
           })}
+          <li class="recent-item">
+            <a href="/writing/small-apocalypses" class="recent-link">
+              <span class="recent-title">Small Apocalypses</span>
+              <time class="recent-date mono" datetime="2024-10-01">Oct 2024</time>
+            </a>
+          </li>
         </ul>
         <a href="/writing" class="all-writing mono">All writing &#8594;</a>
       </div>
     </section>
-  )}
 </Base>
 
 <style>

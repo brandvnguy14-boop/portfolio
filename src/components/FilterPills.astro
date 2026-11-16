@@ -1,14 +1,19 @@
 ---
+type Kind = 'essay' | 'poetry' | 'letter';
 interface Props {
-  active: 'all' | 'essay' | 'poetry';
+  active: 'all' | Kind;
+  // Only types that have at least one piece get a pill
+  types?: Kind[];
 }
-const { active } = Astro.props;
+const { active, types = ['essay', 'poetry', 'letter'] } = Astro.props;
+const labels: Record<Kind, string> = { essay: 'Essays', poetry: 'Poetry', letter: 'Letters' };
 ---
 
 <nav class="filter-nav" aria-label="Filter writing by type">
   <button class="pill" data-filter="all" aria-pressed={active === 'all' ? 'true' : 'false'}>All</button>
-  <button class="pill" data-filter="essay" aria-pressed={active === 'essay' ? 'true' : 'false'}>Essays</button>
-  <button class="pill" data-filter="poetry" aria-pressed={active === 'poetry' ? 'true' : 'false'}>Poetry</button>
+  {types.map((t) => (
+    <button class="pill" data-filter={t} aria-pressed={active === t ? 'true' : 'false'}>{labels[t]}</button>
+  ))}
 </nav>
 
 <style>
