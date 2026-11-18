@@ -1,9 +1,9 @@
 ---
 import Base from '@/layouts/Base.astro';
-import { BOOK } from '@/data/small-afterlives';
+import { BOOK } from '@/data/what-the-air-forgets';
 ---
 
-<Base title="Small Afterlives — Brandon Nguyen" description="A lexicon of endings and beginnings. Vol. 1, three poems.">
+<Base title="What the Air Forgets — Brandon Nguyen" description="A lexicon of endings and beginnings. Vol. 1, three poems.">
   <div class="room" id="room">
     <a href="/writing" class="room-back mono">← Writing</a>
     <div class="book-wrap" id="book-wrap">
@@ -149,7 +149,7 @@ import { BOOK } from '@/data/small-afterlives';
 
 <script>
 import * as THREE from 'three';
-import { BOOK } from '@/data/small-afterlives';
+import { BOOK } from '@/data/what-the-air-forgets';
 
 // ── Book structure ───────────────────────────────────────────────────────────
 // A book is a stack of leaves; each leaf has a front (right-hand) and a back
@@ -300,16 +300,18 @@ function drawPage(ctx: Ctx, spec: Spec, side: 'l' | 'r', W: number, H: number, p
     let y = Math.round(H * 0.15);
     ctx.fillStyle = ACCENT;
     ctx.fillRect(m.mx, y, Math.round(W * 0.12), 1);
-    // Title, sized so the longer word fills the measure
+    // Title, sized so the longer line fills the measure
     ctx.font = `400 100px ${SERIF}`;
     spacing(ctx, '-0.02em');
-    const size = Math.min(W * 0.16, (m.cw * 100) / ctx.measureText('Afterlives').width);
+    const widest = Math.max(...BOOK.coverLines.map((l) => ctx.measureText(l).width));
+    const size = Math.min(W * 0.16, (m.cw * 100) / widest);
     ctx.font = `400 ${size}px ${SERIF}`;
     ctx.fillStyle = '#f0e8d8';
-    y += size * 1.25;
-    ctx.fillText('Small', m.mx, y);
-    y += size * 1.05;
-    ctx.fillText('Afterlives', m.mx, y);
+    y += size * 0.2;
+    for (const line of BOOK.coverLines) {
+      y += size * 1.05;
+      ctx.fillText(line, m.mx, y);
+    }
     y += size * 0.75;
     ctx.font = `400 ${m.small * 1.1}px ${MONO}`;
     ctx.fillStyle = '#c98a45';
@@ -334,8 +336,10 @@ function drawPage(ctx: Ctx, spec: Spec, side: 'l' | 'r', W: number, H: number, p
   if (spec.t === 'title') {
     const cx = W / 2;
     ctx.textAlign = 'center';
-    ctx.font = `400 ${clamp(W * 0.085, 26, 44)}px ${SERIF}`;
+    ctx.font = `400 100px ${SERIF}`;
     spacing(ctx, '-0.02em');
+    const fit = (m.cw * 100) / ctx.measureText(BOOK.title).width;
+    ctx.font = `400 ${Math.min(clamp(W * 0.085, 26, 44), fit)}px ${SERIF}`;
     ctx.fillStyle = INK;
     const y = Math.round(H * 0.36);
     ctx.fillText(BOOK.title, cx, y);

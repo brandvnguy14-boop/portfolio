@@ -1,6 +1,7 @@
-// Text of the Small Afterlives collection, shared by the page markup and the book renderer.
+// Text of the What the Air Forgets collection, shared by the page markup and the book renderer.
 export const BOOK = {
-  title: 'Small Afterlives',
+  title: 'What the Air Forgets',
+  coverLines: ['What the', 'Air Forgets'],
   subtitle: 'a lexicon of endings and beginnings',
   volume: 'Vol. 1',
   count: 'Vol. 1 · three poems',
